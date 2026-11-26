@@ -48,7 +48,7 @@
 
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
                 const swCode = `
-                    const CACHE_NAME = 'enjoy-note-offline-v4';
+                    const CACHE_NAME = 'enjoy-note-offline-v5';
                     const CORE_ASSETS = [
                         './',
                         './index.html',
@@ -259,11 +259,11 @@
                         <input type="text" id="login-name" placeholder="ชื่อเล่นของคุณ (แสดงบนหน้าปกสมุด)" class="w-full px-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-sm sm:text-base outline-none focus:border-[#5B3758]">
                     </div>
 
-                    <button type="button" onclick="handleLogin(false)" class="w-full py-3.5 rounded-2xl bg-[#5B3758] hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2">
+                    <button type="button" id="btn-login-sync" onclick="handleLogin(false)" class="w-full py-3.5 rounded-2xl bg-[#5B3758] hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2 cursor-pointer">
                         เข้าสู่ระบบ & ซิงค์
                     </button>
 
-                    <button type="button" onclick="handleLogin(true)" class="w-full py-3.5 rounded-2xl bg-[#5B3758]/90 hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-sm transition flex items-center justify-center gap-2">
+                    <button type="button" id="btn-login-guest" onclick="handleLogin(true)" class="w-full py-3.5 rounded-2xl bg-[#5B3758]/90 hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-sm transition flex items-center justify-center gap-2 cursor-pointer">
                         เข้าใช้งานทันที
                     </button>
 
@@ -1003,15 +1003,6 @@
             }
         }
 
-        function saveAllToStorage(showNotify = false) {
-            try {
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
-                if (showNotify) showToast('บันทึกสมุดโน๊ตเรียบร้อยแล้ว ☁️');
-            } catch (e) {
-                if (showNotify) showToast('พื้นที่จัดเก็บใกล้เต็ม แนะนำให้ลบไฟล์ขนาดใหญ่บางส่วน');
-            }
-        }
-
         function createEmptyPage(template = 'lined') {
             return {
                 id: 'pg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -1072,18 +1063,29 @@
         }
 
         function handleLogin(isGuest) {
-            const emailInput = document.getElementById('login-email').value.trim();
-            const nameInput = document.getElementById('login-name').value.trim();
-            if (!isGuest && !emailInput) {
-                showToast('กรุณากรอกอีเมล Gmail หรือกด "เข้าใช้งานทันที" ครับ');
-                return;
+            try {
+                const emailEl = document.getElementById('login-email');
+                const nameEl = document.getElementById('login-name');
+                const emailInput = emailEl ? emailEl.value.trim() : '';
+                const nameInput = nameEl ? nameEl.value.trim() : '';
+                if (!isGuest && !emailInput) {
+                    showToast('กรุณากรอกอีเมล Gmail หรือกด "เข้าใช้งานทันที" ครับ');
+                    return;
+                }
+                appData.user = {
+                    email: isGuest ? 'offline@enjoynote.app' : emailInput,
+                    name: nameInput || (emailInput ? emailInput.split('@')[0] : 'นักเรียนคนเก่ง')
+                };
+                saveAllToStorage(false);
+                enterLibraryScreen();
+                if (!isGuest && window.CloudSyncEngine && window.CloudSyncEngine.db) {
+                    window.CloudSyncEngine.startAccountSync(appData.user.email);
+                }
+            } catch (err) {
+                console.error('Login error:', err);
+                document.getElementById('login-screen').classList.add('hidden');
+                document.getElementById('library-screen').classList.remove('hidden');
             }
-            appData.user = {
-                email: isGuest ? 'offline@enjoynote.app' : emailInput,
-                name: nameInput || (emailInput ? emailInput.split('@')[0] : 'นักเรียนคนเก่ง')
-            };
-            saveAllToStorage(false);
-            enterLibraryScreen();
         }
 
         function logoutUser() {
@@ -2862,6 +2864,12 @@
             updateOnlineStatusPill();
             attachCanvasEvents(1);
             attachCanvasEvents(2);
+
+            const btnSync = document.getElementById('btn-login-sync');
+            const btnGuest = document.getElementById('btn-login-guest');
+            if (btnSync) btnSync.onclick = () => handleLogin(false);
+            if (btnGuest) btnGuest.onclick = () => handleLogin(true);
+
             if (appData.user) {
                 enterLibraryScreen();
             }
