@@ -49,7 +49,7 @@
             // Register Service Worker for 100% Offline Support
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
                 const swCode = `
-                    const CACHE_NAME = 'enjoy-note-offline-v2';
+                    const CACHE_NAME = 'enjoy-note-offline-v3';
                     const CORE_ASSETS = [
                         './',
                         './index.html',
@@ -318,7 +318,7 @@
                 <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
                     <i class="fa-solid fa-file-pdf"></i>
                     <span>นำเข้า PDF</span>
-                    <input type="file" id="import-pdf-input" accept="application/pdf" class="hidden" onchange="handleImportPdfFile(this)">
+                    <input type="file" id="import-pdf-input" accept=".pdf,application/pdf" class="hidden" onchange="handleImportPdfFile(this)">
                 </label>
                 <button type="button" onclick="openNewNotebookModal()" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-gnPurpleDark text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
                     <i class="fa-solid fa-plus"></i>
@@ -469,7 +469,7 @@
             <label class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-rose-100 text-rose-800 font-bold text-xs flex items-center gap-1 shrink-0" title="แทรกไฟล์ PDF ต่อจากหน้าปัจจุบัน">
                 <i class="fa-solid fa-file-pdf"></i>
                 <span>แทรก PDF</span>
-                <input type="file" accept="application/pdf" class="hidden" onchange="handleInsertPdfPagesIntoCurrentDoc(this)">
+                <input type="file" accept=".pdf,application/pdf" class="hidden" onchange="handleInsertPdfPagesIntoCurrentDoc(this)">
             </label>
 
             <button type="button" onclick="openStickerPicker()" class="px-2.5 py-1.5 rounded-xl bg-pink-100 text-pink-800 font-bold text-xs flex items-center gap-1 shrink-0">
@@ -613,8 +613,82 @@
     </div>
 
     <script>
-        if (window.pdfjsLib) {
-            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // ==================== INDEXEDDB FOR LARGE PDF & OFFLINE STORAGE ====================
+        const PDF_DB_NAME = 'EnjoyNote_PDF_Store_v1';
+        const PDF_STORE_NAME = 'pdf_blobs';
+        const memoryPdfBlobs = {}; // Instant fallback in-memory cache
+
+        function openPdfIndexedDB() {
+            return new Promise((resolve, reject) => {
+                if (!window.indexedDB) return reject(new Error('IndexedDB not supported'));
+                const req = indexedDB.open(PDF_DB_NAME, 1);
+                req.onupgradeneeded = (e) => {
+                    const db = e.target.result;
+                    if (!db.objectStoreNames.contains(PDF_STORE_NAME)) {
+                        db.createObjectStore(PDF_STORE_NAME);
+                    }
+                };
+                req.onsuccess = () => resolve(req.result);
+                req.onerror = () => reject(req.error);
+            });
+        }
+
+        async function savePdfBytesToDB(pdfKey, arrayBuffer) {
+            memoryPdfBlobs[pdfKey] = arrayBuffer;
+            try {
+                const db = await openPdfIndexedDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(PDF_STORE_NAME, 'readwrite');
+                    tx.objectStore(PDF_STORE_NAME).put(arrayBuffer, pdfKey);
+                    tx.oncomplete = () => resolve(true);
+                    tx.onerror = () => resolve(false);
+                });
+            } catch (e) {
+                return false;
+            }
+        }
+
+        async function getPdfBytesFromDB(pdfKey) {
+            if (!pdfKey) return null;
+            if (memoryPdfBlobs[pdfKey]) return memoryPdfBlobs[pdfKey];
+            try {
+                const db = await openPdfIndexedDB();
+                return new Promise((resolve) => {
+                    const tx = db.transaction(PDF_STORE_NAME, 'readonly');
+                    const req = tx.objectStore(PDF_STORE_NAME).get(pdfKey);
+                    req.onsuccess = () => {
+                        if (req.result) memoryPdfBlobs[pdfKey] = req.result;
+                        resolve(req.result || null);
+                    };
+                    req.onerror = () => resolve(null);
+                });
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function deletePdfBytesFromDB(pdfKey) {
+            if (!pdfKey) return;
+            delete memoryPdfBlobs[pdfKey];
+            try {
+                const db = await openPdfIndexedDB();
+                const tx = db.transaction(PDF_STORE_NAME, 'readwrite');
+                tx.objectStore(PDF_STORE_NAME).delete(pdfKey);
+            } catch (e) {}
+        }
+
+        function loadPdfJsDocument(arrayBuffer) {
+            if (!window.pdfjsLib) {
+                throw new Error('ระบบอ่าน PDF ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่');
+            }
+            // Clone buffer because PDF.js transfers/detaches ArrayBuffer
+            const clonedBytes = new Uint8Array(arrayBuffer.slice(0));
+            return pdfjsLib.getDocument({
+                data: clonedBytes,
+                disableWorker: true,
+                isEvalSupported: false,
+                useSystemFonts: true
+            }).promise;
         }
 
         // ==================== PWA INSTALL PROMPT HANDLER ====================
@@ -639,7 +713,7 @@
                 `
                 <div class="space-y-3 text-xs text-slate-700 leading-relaxed">
                     <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
-                        ✅ ระบบบันทึกข้อมูลแบบ Offline ทำงานแล้ว! คุณสามารถเปิดใช้งานแอปนี้ได้แม้ปิดอินเทอร์เน็ต
+                        ✅ ระบบบันทึกข้อมูลแบบ Offline ทำงานแล้ว! คุณสามารถเปิดใช้งานแอปนี้และนำเข้า PDF ได้แม้ปิดอินเทอร์เน็ต
                     </div>
                     <p class="font-bold text-gnPurple">ขั้นตอนติดตั้งลงหน้าจอหลัก (ไม่มีแถบ Chrome บัง):</p>
                     <ol class="list-decimal pl-5 space-y-1.5">
@@ -662,7 +736,7 @@
                 pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> ออนไลน์ & บันทึกออฟไลน์พร้อมใช้งาน';
             } else {
                 pill.className = 'mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold';
-                pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> โหมดออฟไลน์ (ไม่มีเน็ต): จดโน๊ตและอ่าน PDF ได้ตามปกติ';
+                pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> โหมดออฟไลน์ (ไม่มีเน็ต): จดโน๊ตและนำเข้า PDF ได้ตามปกติ';
             }
         }
         window.addEventListener('online', updateOnlineStatusPill);
@@ -891,6 +965,10 @@
 
         function deleteDocument(docId) {
             if (appData.docs.length <= 1) return showToast('ต้องมีสมุดอย่างน้อย 1 เล่มครับ');
+            const target = appData.docs.find(d => d.id === docId);
+            if (target && target.pdfStorageKey) {
+                deletePdfBytesFromDB(target.pdfStorageKey);
+            }
             appData.docs = appData.docs.filter(d => d.id !== docId);
             saveAllToStorage(false);
             renderLibrary();
@@ -966,93 +1044,98 @@
             );
         }
 
+        // ==================== OFFLINE & ONLINE PDF IMPORT (INDEXEDDB + NO EXTERNAL WORKER) ====================
         async function handleImportPdfFile(input) {
-            const file = input.files[0];
+            const file = input.files && input.files[0];
             if (!file) return;
-            showToast('กำลังนำเข้าไฟล์ PDF... ⏳');
+            showToast('กำลังอ่านไฟล์ PDF (รองรับทั้งออนไลน์และออฟไลน์)... ⏳');
             try {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64Data = e.target.result;
-                    const loadingTask = pdfjsLib.getDocument({ data: atob(base64Data.split(',')[1]) });
-                    const pdfDoc = await loadingTask.promise;
-                    const pages = [];
-                    for (let i = 1; i <= pdfDoc.numPages; i++) {
-                        const page = await pdfDoc.getPage(i);
-                        const vp = page.getViewport({ scale: 1 });
-                        pages.push({
-                            id: 'pdf_pg_' + Date.now() + '_' + i,
-                            template: 'blank',
-                            width: Math.round(vp.width) || 595,
-                            height: Math.round(vp.height) || 842,
-                            pdfPageNum: i,
-                            strokes: [],
-                            items: []
-                        });
-                    }
-                    const newPdfDoc = {
-                        id: 'pdf_' + Date.now(),
-                        title: file.name.replace(/\.pdf$/i, ''),
-                        folder: 'ไฟล์ PDF',
-                        isPdf: true,
-                        pdfDataUrl: base64Data,
-                        coverColor: '#E11D48',
-                        updatedAt: Date.now(),
-                        pages
-                    };
-                    appData.docs.unshift(newPdfDoc);
-                    saveAllToStorage(false);
-                    renderLibrary();
-                    openDocumentInWorkspace(newPdfDoc.id);
-                    showToast(`นำเข้า PDF สำเร็จ (${pdfDoc.numPages} หน้า)!`);
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfKey = 'pdf_blob_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                await savePdfBytesToDB(pdfKey, arrayBuffer);
+
+                const pdfDoc = await loadPdfJsDocument(arrayBuffer);
+                const pages = [];
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const vp = page.getViewport({ scale: 1 });
+                    pages.push({
+                        id: 'pdf_pg_' + Date.now() + '_' + i,
+                        template: 'blank',
+                        width: Math.round(vp.width) || 595,
+                        height: Math.round(vp.height) || 842,
+                        pdfPageNum: i,
+                        pdfStorageKey: pdfKey,
+                        strokes: [],
+                        items: []
+                    });
+                }
+
+                const newPdfDoc = {
+                    id: 'pdf_' + Date.now(),
+                    title: file.name.replace(/\.pdf$/i, ''),
+                    folder: 'ไฟล์ PDF',
+                    isPdf: true,
+                    pdfStorageKey: pdfKey,
+                    coverColor: '#E11D48',
+                    updatedAt: Date.now(),
+                    pages
                 };
-                reader.readAsDataURL(file);
+
+                appData.docs.unshift(newPdfDoc);
+                saveAllToStorage(false);
+                renderLibrary();
+                await openDocumentInWorkspace(newPdfDoc.id);
+                showToast(`นำเข้า PDF สำเร็จ (${pdfDoc.numPages} หน้า)! ✅`);
             } catch (err) {
-                showToast('ไม่สามารถเปิดไฟล์ PDF นี้ได้ครับ');
+                console.error('PDF import error:', err);
+                showToast('เปิดไฟล์ PDF ไม่สำเร็จ: ' + (err?.message || 'ไฟล์อาจติดรหัสผ่านหรือเสียหาย'));
+            } finally {
+                input.value = '';
             }
-            input.value = '';
         }
 
         async function handleInsertPdfPagesIntoCurrentDoc(input) {
-            const file = input.files[0];
+            const file = input.files && input.files[0];
             if (!file) return;
             const state = paneState[activePane];
             if (!state.doc) return;
 
             showToast('กำลังแทรกหน้า PDF ลงในสมุด... ⏳');
             try {
-                const reader = new FileReader();
-                reader.onload = async (e) => {
-                    const base64Data = e.target.result;
-                    const loadingTask = pdfjsLib.getDocument({ data: atob(base64Data.split(',')[1]) });
-                    const pdfDoc = await loadingTask.promise;
-                    const newPages = [];
-                    for (let i = 1; i <= pdfDoc.numPages; i++) {
-                        const page = await pdfDoc.getPage(i);
-                        const vp = page.getViewport({ scale: 1 });
-                        newPages.push({
-                            id: 'pdf_ins_' + Date.now() + '_' + i,
-                            template: 'blank',
-                            width: Math.round(vp.width) || 595,
-                            height: Math.round(vp.height) || 842,
-                            pdfPageNum: i,
-                            customPdfDataUrl: base64Data,
-                            strokes: [],
-                            items: []
-                        });
-                    }
-                    const insertAt = state.pageIndex + 1;
-                    state.doc.pages.splice(insertAt, 0, ...newPages);
-                    state.pageIndex = insertAt;
-                    saveAllToStorage(false);
-                    await renderPane(activePane);
-                    showToast(`แทรกไฟล์ PDF เพิ่ม ${pdfDoc.numPages} หน้าเรียบร้อย!`);
-                };
-                reader.readAsDataURL(file);
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfKey = 'pdf_ins_blob_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                await savePdfBytesToDB(pdfKey, arrayBuffer);
+
+                const pdfDoc = await loadPdfJsDocument(arrayBuffer);
+                const newPages = [];
+                for (let i = 1; i <= pdfDoc.numPages; i++) {
+                    const page = await pdfDoc.getPage(i);
+                    const vp = page.getViewport({ scale: 1 });
+                    newPages.push({
+                        id: 'pdf_ins_' + Date.now() + '_' + i,
+                        template: 'blank',
+                        width: Math.round(vp.width) || 595,
+                        height: Math.round(vp.height) || 842,
+                        pdfPageNum: i,
+                        pdfStorageKey: pdfKey,
+                        strokes: [],
+                        items: []
+                    });
+                }
+
+                const insertAt = state.pageIndex + 1;
+                state.doc.pages.splice(insertAt, 0, ...newPages);
+                state.pageIndex = insertAt;
+                saveAllToStorage(false);
+                await renderPane(activePane);
+                showToast(`แทรกไฟล์ PDF เพิ่ม ${pdfDoc.numPages} หน้าเรียบร้อย! ✅`);
             } catch (err) {
-                showToast('ไม่สามารถแทรกไฟล์ PDF นี้ได้ครับ');
+                console.error('PDF insert error:', err);
+                showToast('แทรกไฟล์ PDF ไม่สำเร็จ: ' + (err?.message || 'ไฟล์อาจติดรหัสผ่าน'));
+            } finally {
+                input.value = '';
             }
-            input.value = '';
         }
 
         // ==================== WORKSPACE & DUAL PANE ENGINE ====================
@@ -1082,10 +1165,19 @@
             state.pdfDoc = null;
             state.pdfCache = {};
 
-            if (doc.isPdf && doc.pdfDataUrl && window.pdfjsLib) {
+            if (doc.isPdf) {
                 try {
-                    const raw = atob(doc.pdfDataUrl.split(',')[1]);
-                    state.pdfDoc = await pdfjsLib.getDocument({ data: raw }).promise;
+                    if (doc.pdfStorageKey) {
+                        const bytes = await getPdfBytesFromDB(doc.pdfStorageKey);
+                        if (bytes) {
+                            state.pdfDoc = await loadPdfJsDocument(bytes);
+                        }
+                    } else if (doc.pdfDataUrl) {
+                        const raw = atob(doc.pdfDataUrl.split(',')[1]);
+                        const arr = new Uint8Array(raw.length);
+                        for (let i = 0; i < raw.length; i++) arr[i] = raw.charCodeAt(i);
+                        state.pdfDoc = await loadPdfJsDocument(arr.buffer);
+                    }
                 } catch (e) {
                     console.warn('PDF load error:', e);
                 }
@@ -1275,14 +1367,19 @@
 
             const pdfCtx = pdfCanvas.getContext('2d');
             let activePdfDoc = state.pdfDoc;
-            if (page.customPdfDataUrl && window.pdfjsLib) {
-                if (!state.pdfCache[page.customPdfDataUrl]) {
+            const pagePdfKey = page.pdfStorageKey || state.doc.pdfStorageKey;
+            if (pagePdfKey) {
+                if (!state.pdfCache[pagePdfKey]) {
                     try {
-                        const raw = atob(page.customPdfDataUrl.split(',')[1]);
-                        state.pdfCache[page.customPdfDataUrl] = await pdfjsLib.getDocument({ data: raw }).promise;
+                        const bytes = await getPdfBytesFromDB(pagePdfKey);
+                        if (bytes) {
+                            state.pdfCache[pagePdfKey] = await loadPdfJsDocument(bytes);
+                        }
                     } catch (e) {}
                 }
-                activePdfDoc = state.pdfCache[page.customPdfDataUrl];
+                if (state.pdfCache[pagePdfKey]) {
+                    activePdfDoc = state.pdfCache[pagePdfKey];
+                }
             }
 
             if (page.pdfPageNum && activePdfDoc) {
@@ -2320,7 +2417,7 @@
         }
 
         async function handleReadAloudFileUpload(input) {
-            const file = input.files[0];
+            const file = input.files && input.files[0];
             if (!file) return;
             const textarea = document.getElementById('tts-text-input');
             const langSel = document.getElementById('tts-lang-select');
@@ -2328,7 +2425,7 @@
                 let text = '';
                 if (file.name.toLowerCase().endsWith('.pdf') && window.pdfjsLib) {
                     const buf = await file.arrayBuffer();
-                    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+                    const pdf = await loadPdfJsDocument(buf);
                     for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
                         const p = await pdf.getPage(i);
                         const tc = await p.getTextContent();
@@ -2486,7 +2583,7 @@
             document.getElementById('toast-msg').textContent = msg;
             box.classList.remove('opacity-0');
             clearTimeout(toastTimer);
-            toastTimer = setTimeout(() => box.classList.add('opacity-0'), 2400);
+            toastTimer = setTimeout(() => box.classList.add('opacity-0'), 2800);
         }
 
         // ==================== BOOTSTRAP ====================
