@@ -1,0 +1,2364 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Enjoy note - สมุดโน๊ต PDF อัจฉริยะ</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gnPurple: '#4A2545',
+                        gnPurpleDark: '#361932',
+                        gnAccent: '#7C3AED',
+                        gnBg: '#F6F3F7'
+                    },
+                    fontFamily: {
+                        sans: ['Anuphan', 'Sarabun', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+        }
+        body {
+            font-family: 'Anuphan', 'Sarabun', 'sans-serif';
+            background-color: #F6F3F7;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            height: 100dvh;
+            width: 100vw;
+        }
+        .paper-grid {
+            background-image: linear-gradient(to right, #E2E8F0 1px, transparent 1px),
+                              linear-gradient(to bottom, #E2E8F0 1px, transparent 1px);
+            background-size: 24px 24px;
+        }
+        .paper-lined {
+            background-image: linear-gradient(to bottom, transparent 27px, #CBD5E1 28px);
+            background-size: 100% 28px;
+        }
+        .paper-cornell {
+            background-image:
+                linear-gradient(to right, transparent 130px, #F87171 130px, #F87171 132px, transparent 132px),
+                linear-gradient(to bottom, transparent 90px, #F87171 90px, #F87171 92px, transparent 92px),
+                linear-gradient(to bottom, transparent 27px, #E2E8F0 28px);
+            background-size: 100% 100%, 100% 100%, 100% 28px;
+        }
+        .paper-dotted {
+            background-image: radial-gradient(#94A3B8 1.2px, transparent 1.2px);
+            background-size: 20px 20px;
+        }
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .highlighter-multiply {
+            mix-blend-mode: multiply;
+        }
+        .canvas-touch-lock {
+            touch-action: none;
+        }
+        .viewport-pinch-lock {
+            touch-action: pan-x pan-y;
+            overscroll-behavior: contain;
+        }
+    </style>
+</head>
+<body class="text-slate-800 bg-[#19141C]">
+
+    <!-- ==================== 1. LOGIN SCREEN ==================== -->
+    <div id="login-screen" class="fixed inset-0 z-50 bg-[#19141C] min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+        <!-- Ambient Top-Center Glow -->
+        <div class="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[640px] h-[420px] bg-gradient-to-b from-[#5A3256]/50 via-[#3B2038]/25 to-transparent blur-3xl"></div>
+
+        <!-- Outer Gradient Card Frame -->
+        <div class="w-full max-w-[480px] sm:max-w-[520px] p-4 sm:p-5 rounded-[38px] bg-gradient-to-b from-[#7E547A]/90 via-[#6E476B]/85 to-[#C57D95]/90 shadow-[0_24px_60px_rgba(0,0,0,0.65)] relative z-10 my-auto">
+            <div class="w-full bg-[#FAF8FB] rounded-[30px] px-6 py-8 sm:px-9 sm:py-9 shadow-inner">
+                <div class="flex flex-col items-center text-center">
+                    <!-- Circular App Emblem (Supports Custom Image Upload) -->
+                    <label for="custom-app-logo-input" class="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center mb-2 cursor-pointer group" title="แตะเพื่อเปลี่ยนรูปภาพโลโก้จากเครื่องของคุณ">
+                        <input type="file" id="custom-app-logo-input" accept="image/*" class="hidden" onchange="handleCustomAppLogoUpload(this)">
+                        <!-- Custom Uploaded Logo Image -->
+                        <div id="custom-logo-circle-wrap" class="hidden w-full h-full rounded-full border-[4px] border-[#C08497] shadow-md overflow-hidden bg-pink-100 relative">
+                            <img id="custom-logo-img-login" src="" alt="Enjoy note logo" class="w-full h-full object-cover">
+                        </div>
+                        <!-- Default SVG Emblem -->
+                        <svg id="default-logo-svg-login" viewBox="0 0 180 180" class="w-full h-full overflow-visible">
+                            <defs>
+                                <radialGradient id="circleBgGrad" cx="50%" cy="45%" r="55%">
+                                    <stop offset="0%" stop-color="#FCE7F3"/>
+                                    <stop offset="65%" stop-color="#F5D0FE"/>
+                                    <stop offset="100%" stop-color="#E9D5FF"/>
+                                </radialGradient>
+                                <clipPath id="emblemCircleClip">
+                                    <circle cx="90" cy="86" r="64"/>
+                                </clipPath>
+                            </defs>
+
+                            <path d="M22 104 L24.5 110.5 L31 113 L24.5 115.5 L22 122 L19.5 115.5 L13 113 L19.5 110.5 Z" fill="#FDE68A"/>
+                            <path d="M162 110 L164.5 116.5 L171 119 L164.5 121.5 L162 128 L159.5 121.5 L153 119 L159.5 116.5 Z" fill="#BAE6FD"/>
+                            <path d="M24 128 C19 122, 10 127, 15 135 L24 144 L33 135 C38 127, 29 122, 24 128 Z" fill="#A78BFA"/>
+                            <path d="M155 132 C150 126, 141 131, 146 139 L155 148 L164 139 C169 131, 160 126, 155 132 Z" fill="#A78BFA"/>
+
+                            <circle cx="90" cy="86" r="65" fill="url(#circleBgGrad)" stroke="#C08497" stroke-width="3.5"/>
+
+                            <g clip-path="url(#emblemCircleClip)">
+                                <circle cx="90" cy="88" r="50" fill="#DDD6FE" opacity="0.65"/>
+                                <path d="M134 44 L136.5 50.5 L143 53 L136.5 55.5 L134 62 L131.5 55.5 L125 53 L131.5 50.5 Z" fill="#7DD3FC"/>
+                                <path d="M142 64 L143.5 68 L147.5 69.5 L143.5 71 L142 75 L140.5 71 L136.5 69.5 L140.5 68 Z" fill="#FDE047"/>
+                                <path d="M39 74 C35 69, 28 73, 32 79 L39 86 L46 79 C50 73, 43 69, 39 74 Z" fill="#FB7185" stroke="#362419" stroke-width="2"/>
+                                <path d="M138 82 C135 78, 129 81, 132 86 L138 92 L144 86 C147 81, 141 78, 138 82 Z" fill="#FB7185" stroke="#362419" stroke-width="2"/>
+
+                                <path d="M46 78 C42 32, 138 32, 134 78 C138 106, 130 132, 120 142 L56 142 C42 132, 38 105, 46 78 Z" fill="#3B2E2A" stroke="#261A16" stroke-width="2.6"/>
+                                <path d="M58 54 Q70 48 82 53" stroke="#6E5850" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+                                <path d="M50 86 Q47 104 52 120" stroke="#6E5850" stroke-width="2.2" stroke-linecap="round" fill="none"/>
+
+                                <path d="M52 154 C52 118, 128 118, 128 154 Z" fill="#C4B5FD" stroke="#261A16" stroke-width="2.6"/>
+
+                                <ellipse cx="90" cy="78" rx="31" ry="29" fill="#FFE4D6" stroke="#261A16" stroke-width="2.6"/>
+                                <circle cx="58" cy="80" r="5.5" fill="#FFE4D6" stroke="#261A16" stroke-width="2.2"/>
+                                <circle cx="122" cy="80" r="5.5" fill="#FFE4D6" stroke="#261A16" stroke-width="2.2"/>
+
+                                <path d="M58 74 C58 43, 122 43, 122 74 C116 63, 107 62, 101 70 C96 62, 85 62, 79 70 C73 62, 63 63, 58 74 Z" fill="#3B2E2A" stroke="#261A16" stroke-width="2.4" stroke-linejoin="round"/>
+
+                                <path d="M72 78 Q78 71 84 78" stroke="#261A16" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                                <path d="M96 78 Q102 71 108 78" stroke="#261A16" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+                                <ellipse cx="70" cy="86" rx="6.5" ry="3.5" fill="#FDA4AF" opacity="0.85"/>
+                                <ellipse cx="110" cy="86" rx="6.5" ry="3.5" fill="#FDA4AF" opacity="0.85"/>
+                                <path d="M89 83 Q91 85 89 87" stroke="#9A6B56" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+                                <path d="M84 91 Q90 97 96 91" stroke="#261A16" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+                                <g transform="translate(4, 10)">
+                                    <path d="M122 120 Q132 113 130 105" stroke="#C68B4E" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+                                    <ellipse cx="96" cy="122" rx="25" ry="19" fill="#D49A5A" stroke="#261A16" stroke-width="2.5"/>
+                                    <ellipse cx="72" cy="105" rx="8" ry="14" transform="rotate(24 72 105)" fill="#B87A3D" stroke="#261A16" stroke-width="2.4"/>
+                                    <ellipse cx="120" cy="105" rx="8" ry="14" transform="rotate(-24 120 105)" fill="#B87A3D" stroke="#261A16" stroke-width="2.4"/>
+                                    <ellipse cx="96" cy="103" rx="22" ry="18" fill="#DDA668" stroke="#261A16" stroke-width="2.5"/>
+                                    <circle cx="88" cy="102" r="2.8" fill="#261A16"/>
+                                    <circle cx="104" cy="102" r="2.8" fill="#261A16"/>
+                                    <ellipse cx="83" cy="107" rx="3.5" ry="2" fill="#FB7185" opacity="0.85"/>
+                                    <ellipse cx="109" cy="107" rx="3.5" ry="2" fill="#FB7185" opacity="0.85"/>
+                                    <ellipse cx="96" cy="107" rx="3.6" ry="2.4" fill="#261A16"/>
+                                    <path d="M91 111 Q96 115 101 111" stroke="#261A16" stroke-width="2.1" fill="none" stroke-linecap="round"/>
+                                    <path d="M56 116 C61 130, 82 132, 91 127" stroke="#FFE4D6" stroke-width="10" stroke-linecap="round" fill="none"/>
+                                    <path d="M56 116 C61 130, 82 132, 91 127" stroke="#261A16" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+                                    <path d="M122 117 C118 128, 105 131, 96 128" stroke="#FFE4D6" stroke-width="9" stroke-linecap="round" fill="none"/>
+                                    <path d="M122 117 C118 128, 105 131, 96 128" stroke="#261A16" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+                                </g>
+                            </g>
+                        </svg>
+                        <span class="absolute -bottom-1 right-0 px-2.5 py-1 rounded-full bg-[#4A2545] text-white text-[11px] font-bold shadow-sm border border-white flex items-center gap-1">
+                            <i class="fa-solid fa-camera"></i> เปลี่ยนรูป
+                        </span>
+                    </label>
+
+                    <h1 class="text-4xl sm:text-[42px] font-extrabold text-[#4A2545] tracking-tight leading-none mt-2">Enjoy note</h1>
+                    <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">จดโน๊ต อ่าน PDF ปกสมุดสวย • ซิงค์ทุกเครื่องด้วย Gmail</p>
+                    <div class="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> ออนไลน์: พร้อมซิงค์คลาวด์ข้ามอุปกรณ์
+                    </div>
+                </div>
+
+                <div class="mt-6 space-y-3.5">
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#EA4335] font-extrabold text-base">G</span>
+                        <input type="email" id="login-email" placeholder="example@gmail.com" class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-sm sm:text-base outline-none focus:border-[#5B3758]">
+                    </div>
+                    <div>
+                        <input type="text" id="login-name" placeholder="ชื่อเล่นของคุณ (แสดงบนหน้าปกสมุด)" class="w-full px-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-sm sm:text-base outline-none focus:border-[#5B3758]">
+                    </div>
+
+                    <button type="button" onclick="handleLogin(false)" class="w-full py-3.5 rounded-2xl bg-[#5B3758] hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-md transition flex items-center justify-center gap-2">
+                        เข้าสู่ระบบ & ซิงค์
+                    </button>
+
+                    <button type="button" onclick="handleLogin(true)" class="w-full py-3.5 rounded-2xl bg-[#5B3758]/90 hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-sm transition flex items-center justify-center gap-2">
+                        เข้าใช้งานทันที
+                    </button>
+                </div>
+
+                <p class="text-center text-[11px] text-slate-400 mt-5">© 2026 Enjoy note. Optimized for PWA.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== 2. LIBRARY SCREEN ==================== -->
+    <div id="library-screen" class="hidden h-full flex flex-col bg-gnBg">
+        <header class="bg-gnPurple text-white px-4 py-3 flex items-center justify-between shadow-md shrink-0">
+            <div class="flex items-center gap-2.5">
+                <div class="w-10 h-10 rounded-2xl bg-pink-100 border-2 border-pink-200 flex items-center justify-center shadow-xs overflow-hidden shrink-0">
+                    <img id="custom-logo-img-header" src="" alt="Logo" class="hidden w-full h-full object-cover">
+                    <svg id="default-logo-svg-header" viewBox="0 0 140 140" class="w-full h-full">
+                        <circle cx="70" cy="72" r="54" fill="#DDD6FE"/>
+                        <path d="M32 62 C28 24, 112 24, 108 62 C111 86, 104 108, 96 114 L42 114 C30 106, 26 84, 32 62 Z" fill="#362419"/>
+                        <path d="M36 136 C36 104, 104 104, 104 136 Z" fill="#C4B5FD"/>
+                        <ellipse cx="70" cy="64" rx="28" ry="26" fill="#FFE4D6" stroke="#362419" stroke-width="2.5"/>
+                        <path d="M41 60 C41 32, 99 32, 99 60 C94 50, 86 49, 80 56 C76 49, 66 49, 61 56 C55 49, 46 50, 41 60 Z" fill="#362419"/>
+                        <path d="M54 64 Q59 58 64 64" stroke="#23150E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+                        <path d="M76 64 Q81 58 86 64" stroke="#23150E" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+                        <ellipse cx="52" cy="71" rx="5.5" ry="3" fill="#FDA4AF"/>
+                        <ellipse cx="88" cy="71" rx="5.5" ry="3" fill="#FDA4AF"/>
+                        <path d="M64 76 Q70 82 76 76" stroke="#23150E" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+                        <g transform="translate(2, 6)">
+                            <ellipse cx="53" cy="92" rx="7" ry="12" transform="rotate(24 53 92)" fill="#B87A3D" stroke="#362419" stroke-width="2.3"/>
+                            <ellipse cx="95" cy="92" rx="7" ry="12" transform="rotate(-24 95 92)" fill="#B87A3D" stroke="#362419" stroke-width="2.3"/>
+                            <ellipse cx="74" cy="91" rx="20" ry="16" fill="#DDA668" stroke="#362419" stroke-width="2.4"/>
+                            <circle cx="67" cy="90" r="2.6" fill="#23150E"/>
+                            <circle cx="81" cy="90" r="2.6" fill="#23150E"/>
+                            <ellipse cx="74" cy="94" rx="3.2" ry="2.2" fill="#23150E"/>
+                        </g>
+                    </svg>
+                </div>
+                <div>
+                    <h2 class="font-extrabold text-base leading-tight">Enjoy note</h2>
+                    <p id="user-greeting" class="text-[11px] text-purple-200">สวัสดี, นักเรียนคนเก่ง</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-2">
+                <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
+                    <i class="fa-solid fa-file-pdf"></i>
+                    <span>นำเข้า PDF</span>
+                    <input type="file" id="import-pdf-input" accept="application/pdf" class="hidden" onchange="handleImportPdfFile(this)">
+                </label>
+                <button type="button" onclick="openNewNotebookModal()" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-gnPurpleDark text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
+                    <i class="fa-solid fa-plus"></i>
+                    <span>สร้างสมุดใหม่</span>
+                </button>
+                <button type="button" onclick="logoutUser()" class="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs" title="ออกจากระบบ">
+                    <i class="fa-solid fa-right-from-bracket"></i>
+                </button>
+            </div>
+        </header>
+
+        <div class="px-4 pt-3 pb-2 flex flex-wrap items-center gap-2 shrink-0">
+            <div class="relative flex-1 min-w-[180px]">
+                <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs"></i>
+                <input type="text" id="lib-search-input" oninput="renderLibrary()" placeholder="ค้นหาสมุดโน๊ต หรือไฟล์ PDF..." class="w-full pl-8 pr-3 py-2 rounded-xl bg-white border border-slate-200 text-xs outline-none focus:border-gnPurple">
+            </div>
+            <div id="folder-chips" class="flex items-center gap-1.5 overflow-x-auto no-scrollbar"></div>
+        </div>
+
+        <div id="library-grid" class="flex-1 overflow-y-auto p-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 content-start"></div>
+    </div>
+
+    <!-- ==================== 3. WORKSPACE SCREEN ==================== -->
+    <div id="workspace-screen" class="hidden h-full flex flex-col bg-[#EAE6EC]">
+        <div class="bg-gnPurple text-white px-2.5 py-2 flex items-center justify-between gap-1.5 shadow-md shrink-0 z-30">
+            <div class="flex items-center gap-1.5 min-w-0">
+                <button type="button" onclick="closeWorkspaceToLibrary()" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0" title="กลับหน้าคลังสมุด">
+                    <i class="fa-solid fa-chevron-left text-xs"></i>
+                </button>
+                <button type="button" onclick="openPageThumbnailsModal(false)" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0" title="ตารางจัดการและย้ายสลับหน้า">
+                    <i class="fa-solid fa-table-cells-large text-xs"></i>
+                </button>
+                <button type="button" onclick="openAddPageModal(false)" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-white/20 flex items-center justify-center shrink-0" title="แทรกเพิ่มหน้า">
+                    <i class="fa-regular fa-square-plus text-xs"></i>
+                </button>
+                <button type="button" onclick="deleteCurrentPage(false)" class="w-8 h-8 rounded-xl bg-white/10 hover:bg-rose-500/80 flex items-center justify-center shrink-0" title="ลบหน้านี้">
+                    <i class="fa-regular fa-trash-can text-xs"></i>
+                </button>
+                <span id="workspace-doc-title" class="font-bold text-xs sm:text-sm truncate px-2 py-1 rounded-lg bg-white/15 max-w-[85px] sm:max-w-[180px]">สมุดโน๊ต</span>
+            </div>
+
+            <div class="flex items-center gap-1.5 shrink-0">
+                <button type="button" id="btn-split-screen" onclick="toggleSplitScreen()" class="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-white font-bold text-xs flex items-center gap-1 transition" title="แบ่งครึ่งหน้าจอเปิด 2 โน๊ตพร้อมกัน">
+                    <i class="fa-solid fa-table-columns"></i>
+                    <span class="hidden sm:inline">แบ่ง 2 จอ</span>
+                </button>
+                <button type="button" onclick="openAiStudyModal()" class="px-2.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-gnPurpleDark font-extrabold text-xs flex items-center gap-1 shadow-xs transition">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    <span>AI ผู้ช่วยเรียน</span>
+                </button>
+                <button type="button" onclick="saveAllToStorage(true)" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center" title="บันทึกข้อมูลเรียบร้อย">
+                    <i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Primary Pen & Tools Toolbar -->
+        <div class="bg-white border-b border-slate-200 px-2.5 py-1.5 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 z-20">
+            <button type="button" onclick="undoStroke()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center shrink-0" title="ย้อนกลับ">
+                <i class="fa-solid fa-rotate-left text-xs"></i>
+            </button>
+            <button type="button" onclick="redoStroke()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center shrink-0" title="ทำซ้ำ">
+                <i class="fa-solid fa-rotate-right text-xs"></i>
+            </button>
+
+            <div class="h-5 w-[1px] bg-slate-200 mx-0.5 shrink-0"></div>
+
+            <div id="color-palette" class="flex items-center gap-1.5 shrink-0">
+                <button type="button" onclick="setPenColor('#0F172A')" data-color="#0F172A" class="color-dot w-6 h-6 rounded-full bg-[#0F172A] ring-2 ring-offset-1 ring-gnPurple shrink-0"></button>
+                <button type="button" onclick="setPenColor('#DC2626')" data-color="#DC2626" class="color-dot w-6 h-6 rounded-full bg-[#DC2626] shrink-0"></button>
+                <button type="button" onclick="setPenColor('#2563EB')" data-color="#2563EB" class="color-dot w-6 h-6 rounded-full bg-[#2563EB] shrink-0"></button>
+                <button type="button" onclick="setPenColor('#16A34A')" data-color="#16A34A" class="color-dot w-6 h-6 rounded-full bg-[#16A34A] shrink-0"></button>
+                <button type="button" onclick="setPenColor('#FACC15')" data-color="#FACC15" class="color-dot w-6 h-6 rounded-full bg-[#FACC15] shrink-0"></button>
+                <label class="px-2 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-[11px] font-bold text-slate-700 cursor-pointer flex items-center gap-1 shrink-0">
+                    <span>🎨 สีเพิ่ม</span>
+                    <input type="color" id="custom-color-input" onchange="setPenColor(this.value)" class="w-0 h-0 opacity-0 absolute">
+                </label>
+            </div>
+
+            <div class="h-5 w-[1px] bg-slate-200 mx-0.5 shrink-0"></div>
+
+            <button type="button" id="tool-pen" onclick="selectTool('pen')" class="tool-btn px-2.5 py-1.5 rounded-xl bg-purple-100 text-gnPurple font-bold text-xs flex items-center gap-1 shrink-0" title="ปากกาเขียน">
+                <i class="fa-solid fa-pen-nib"></i>
+                <span class="hidden md:inline">ปากกา</span>
+            </button>
+            <button type="button" id="tool-highlighter" onclick="selectTool('highlighter')" class="tool-btn px-2.5 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 font-bold text-xs flex items-center gap-1 shrink-0" title="ไฮไลท์หัวตัด">
+                <i class="fa-solid fa-highlighter"></i>
+                <span class="hidden md:inline">ไฮไลท์</span>
+            </button>
+
+            <button type="button" id="btn-hl-layer" onclick="toggleHighlighterLayer()" class="hidden px-2 py-1 rounded-lg bg-amber-100 text-amber-900 border border-amber-300 font-bold text-[10px] shrink-0">
+                หลังตัวอักษร
+            </button>
+
+            <button type="button" id="tool-eraser" onclick="selectTool('eraser')" class="tool-btn px-2.5 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 font-bold text-xs flex items-center gap-1 shrink-0" title="ยางลบ">
+                <i class="fa-solid fa-eraser"></i>
+                <span class="hidden md:inline">ยางลบ</span>
+            </button>
+            <button type="button" id="tool-text" onclick="selectTool('text')" class="tool-btn px-2.5 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 font-bold text-xs flex items-center gap-1 shrink-0" title="พิมพ์ข้อความ">
+                <i class="fa-solid fa-font"></i>
+                <span class="hidden md:inline">พิมพ์</span>
+            </button>
+            <button type="button" id="tool-hand" onclick="selectTool('hand')" class="tool-btn px-2.5 py-1.5 rounded-xl hover:bg-slate-100 text-slate-600 font-bold text-xs flex items-center gap-1 shrink-0" title="มือเลื่อนหน้า">
+                <i class="fa-regular fa-hand"></i>
+                <span class="hidden md:inline">เลื่อนมือ</span>
+            </button>
+
+            <div class="flex items-center gap-1 bg-slate-100 px-2 py-1 rounded-xl shrink-0">
+                <button type="button" onclick="changePenSize(-1)" class="w-5 h-5 rounded-full bg-white text-slate-700 font-bold text-xs flex items-center justify-center shadow-2xs">-</button>
+                <span id="pen-size-label" class="text-[11px] font-bold text-slate-700 w-6 text-center">2.5</span>
+                <button type="button" onclick="changePenSize(1)" class="w-5 h-5 rounded-full bg-white text-slate-700 font-bold text-xs flex items-center justify-center shadow-2xs">+</button>
+            </div>
+
+            <button type="button" id="btn-palm-rejection" onclick="togglePalmRejection()" class="px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[11px] flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-hand-sparkles"></i>
+                <span id="palm-status-text">กันฝ่ามือ: เปิด</span>
+            </button>
+
+            <button type="button" id="btn-toggle-more-drawer" onclick="toggleMoreToolsDrawer()" class="px-2.5 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-sliders"></i>
+                <span>เพิ่มเติม ▾</span>
+            </button>
+        </div>
+
+        <!-- Secondary Collapsible Drawer -->
+        <div id="more-tools-drawer" class="hidden bg-slate-50 border-b border-slate-200 px-3 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 z-20">
+            <button type="button" onclick="toggleMediaSubDrawer()" class="px-3 py-1.5 rounded-xl bg-indigo-600 text-white font-bold text-xs flex items-center gap-1.5 shrink-0 shadow-2xs">
+                <i class="fa-solid fa-photo-film"></i>
+                <span>สื่อ & อ่านเสียง ▾</span>
+            </button>
+
+            <button type="button" id="tool-lasso-ai" onclick="selectTool('lasso-ai')" class="tool-btn px-2.5 py-1.5 rounded-xl bg-purple-100 text-purple-800 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-crop-simple"></i>
+                <span>วงถาม AI</span>
+            </button>
+
+            <button type="button" id="tool-snip-move" onclick="selectTool('snip-move')" class="tool-btn px-2.5 py-1.5 rounded-xl bg-sky-100 text-sky-800 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-scissors"></i>
+                <span>แคป/ย้ายข้ามหน้า</span>
+            </button>
+
+            <label class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-amber-100 text-amber-900 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-regular fa-image"></i>
+                <span>แทรกรูป</span>
+                <input type="file" accept="image/*" class="hidden" onchange="handleInsertImageToPage(this)">
+            </label>
+
+            <label class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-rose-100 text-rose-800 font-bold text-xs flex items-center gap-1 shrink-0" title="แทรกไฟล์ PDF ต่อจากหน้าปัจจุบัน">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>แทรก PDF</span>
+                <input type="file" accept="application/pdf" class="hidden" onchange="handleInsertPdfPagesIntoCurrentDoc(this)">
+            </label>
+
+            <button type="button" onclick="openStickerPicker()" class="px-2.5 py-1.5 rounded-xl bg-pink-100 text-pink-800 font-bold text-xs flex items-center gap-1 shrink-0">
+                <span>🐾 สติ๊กเกอร์</span>
+            </button>
+
+            <button type="button" onclick="openChangePaperTemplateModal()" class="px-2.5 py-1.5 rounded-xl bg-slate-200 text-slate-800 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-file-lines"></i>
+                <span>เปลี่ยนลายกระดาษ</span>
+            </button>
+        </div>
+
+        <!-- Media & Read Aloud Sub-Drawer -->
+        <div id="media-sub-drawer" class="hidden bg-indigo-50/90 border-b border-indigo-200 px-3 py-2 flex items-center gap-2 overflow-x-auto no-scrollbar shrink-0 z-20">
+            <button type="button" onclick="openInsertLinkModal()" class="px-3 py-1.5 rounded-xl bg-blue-600 text-white font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-link"></i> แทรกลิงก์
+            </button>
+            <button type="button" onclick="openInsertVideoModal()" class="px-3 py-1.5 rounded-xl bg-rose-600 text-white font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-video"></i> แทรกวิดีโอ
+            </button>
+            <button type="button" onclick="openVoiceRecorderModal()" class="px-3 py-1.5 rounded-xl bg-emerald-600 text-white font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-microphone"></i> อัดเสียง & ส่งต่อ
+            </button>
+            <button type="button" id="tool-lasso-read" onclick="selectTool('lasso-read')" class="tool-btn px-3 py-1.5 rounded-xl bg-indigo-700 text-white font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-volume-high"></i> วงอ่านออกเสียง
+            </button>
+            <button type="button" onclick="openReadAloudModal()" class="px-3 py-1.5 rounded-xl bg-white border border-indigo-300 text-indigo-800 font-bold text-xs flex items-center gap-1 shrink-0">
+                <i class="fa-solid fa-file-audio"></i> อ่านออกเสียง / แนบไฟล์ TH-EN
+            </button>
+        </div>
+
+        <!-- ==================== MAIN DUAL/SINGLE CANVAS AREA ==================== -->
+        <div id="split-container" class="flex-1 flex flex-col overflow-hidden relative">
+            <!-- PANE 1 -->
+            <div id="pane-1" onclick="setActivePane(1)" class="flex-1 relative overflow-hidden bg-[#EAE6EC] flex items-center justify-center">
+                <div id="pane-1-badge" class="hidden absolute top-2 left-2 z-20 px-2.5 py-0.5 rounded-full bg-gnPurple text-white text-[10px] font-bold shadow-xs">
+                    จอที่ 1
+                </div>
+
+                <div id="viewport-1" class="w-full h-full overflow-auto grid place-items-center p-4 relative viewport-pinch-lock">
+                    <div id="paper-wrapper-1" class="relative bg-white shadow-xl rounded-sm transition-transform origin-center shrink-0" style="width: 595px; height: 842px; min-width: 595px; min-height: 842px;">
+                        <canvas id="pdf-canvas-1" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                        <svg id="hl-back-svg-1" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <div id="media-layer-1" class="absolute inset-0 w-full h-full"></div>
+                        <svg id="vector-ink-svg-1" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <svg id="hl-front-svg-1" class="absolute inset-0 w-full h-full pointer-events-none highlighter-multiply"></svg>
+                        <canvas id="draw-canvas-1" class="absolute inset-0 w-full h-full canvas-touch-lock"></canvas>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-2.5 left-2.5 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-full px-2.5 py-1 shadow-md flex items-center gap-1.5 text-xs">
+                    <button type="button" onclick="adjustZoom(1, -0.15)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-minus text-[11px]"></i></button>
+                    <span id="zoom-label-1" class="font-bold text-[11px] min-w-[38px] text-center">100%</span>
+                    <button type="button" onclick="adjustZoom(1, 0.15)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-[11px]"></i></button>
+                    <button type="button" onclick="fitZoom(1)" class="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 font-bold text-[10px]">พอดี</button>
+                </div>
+
+                <div class="absolute bottom-2.5 right-2.5 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-full px-2.5 py-1 shadow-md flex items-center gap-1.5 text-xs">
+                    <button type="button" onclick="changePage(1, -1)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                    <span id="page-indicator-1" class="font-bold text-[11px]">1 / 1</span>
+                    <button type="button" onclick="changePage(1, 1)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                    <button type="button" onclick="openAddPageModal(false)" class="px-2 py-0.5 rounded-full bg-purple-100 text-gnPurple font-bold text-[10px]">±หน้า</button>
+                </div>
+            </div>
+
+            <!-- PANE 2 -->
+            <div id="pane-2" onclick="setActivePane(2)" class="hidden flex-1 relative overflow-hidden bg-[#E2DCE5] border-t-2 border-gnPurple flex flex-col">
+                <div class="bg-gnPurpleDark text-white px-2.5 py-1.5 flex items-center justify-between gap-1.5 shrink-0 z-20">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="px-2 py-0.5 rounded-md bg-amber-400 text-gnPurpleDark font-extrabold text-[10px] shrink-0">จอที่ 2</span>
+                        <button type="button" onclick="openSplitNotePickerModal()" class="px-2.5 py-1 rounded-lg bg-white/15 hover:bg-white/25 text-white text-xs font-bold flex items-center gap-1.5 truncate max-w-[170px] sm:max-w-[240px]">
+                            <i class="fa-solid fa-magnifying-glass text-[10px] text-amber-300"></i>
+                            <span id="pane-2-doc-title" class="truncate">เลือกโน๊ต / PDF</span>
+                            <i class="fa-solid fa-caret-down text-[10px]"></i>
+                        </button>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <button type="button" onclick="openAddPageModal(true)" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center" title="เพิ่มหน้าในจอที่ 2">
+                            <i class="fa-regular fa-square-plus text-xs"></i>
+                        </button>
+                        <button type="button" onclick="openPageThumbnailsModal(true)" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center" title="ตารางจัดการหน้าจอที่ 2">
+                            <i class="fa-solid fa-table-cells-large text-xs"></i>
+                        </button>
+                        <button type="button" onclick="toggleSplitOrientation()" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center" title="สลับแบ่งบน-ล่าง / ซ้าย-ขวา">
+                            <i class="fa-solid fa-arrows-left-right-to-line text-xs"></i>
+                        </button>
+                        <button type="button" onclick="swapSplitDocs()" class="w-7 h-7 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center" title="สลับเอกสารระหว่างจอ 1 และ 2">
+                            <i class="fa-solid fa-rotate text-xs"></i>
+                        </button>
+                        <button type="button" onclick="toggleSplitScreen()" class="w-7 h-7 rounded-lg bg-rose-500/80 hover:bg-rose-600 flex items-center justify-center" title="ปิดแบ่งหน้าจอ">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="viewport-2" class="flex-1 overflow-auto grid place-items-center p-4 relative viewport-pinch-lock">
+                    <div id="paper-wrapper-2" class="relative bg-white shadow-xl rounded-sm transition-transform origin-center shrink-0" style="width: 595px; height: 842px; min-width: 595px; min-height: 842px;">
+                        <canvas id="pdf-canvas-2" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                        <svg id="hl-back-svg-2" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <div id="media-layer-2" class="absolute inset-0 w-full h-full"></div>
+                        <svg id="vector-ink-svg-2" class="absolute inset-0 w-full h-full pointer-events-none"></svg>
+                        <svg id="hl-front-svg-2" class="absolute inset-0 w-full h-full pointer-events-none highlighter-multiply"></svg>
+                        <canvas id="draw-canvas-2" class="absolute inset-0 w-full h-full canvas-touch-lock"></canvas>
+                    </div>
+                </div>
+
+                <div class="absolute bottom-2 left-2.5 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-full px-2.5 py-1 shadow-md flex items-center gap-1.5 text-xs">
+                    <button type="button" onclick="adjustZoom(2, -0.15)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-minus text-[11px]"></i></button>
+                    <span id="zoom-label-2" class="font-bold text-[11px] min-w-[38px] text-center">100%</span>
+                    <button type="button" onclick="adjustZoom(2, 0.15)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-magnifying-glass-plus text-[11px]"></i></button>
+                    <button type="button" onclick="fitZoom(2)" class="px-2 py-0.5 rounded-full bg-slate-100 hover:bg-slate-200 font-bold text-[10px]">พอดี</button>
+                </div>
+
+                <div class="absolute bottom-2 right-2.5 z-20 bg-white/95 backdrop-blur-xs border border-slate-200 rounded-full px-2.5 py-1 shadow-md flex items-center gap-1.5 text-xs">
+                    <button type="button" onclick="changePage(2, -1)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-chevron-left text-[10px]"></i></button>
+                    <span id="page-indicator-2" class="font-bold text-[11px]">1 / 1</span>
+                    <button type="button" onclick="changePage(2, 1)" class="w-6 h-6 rounded-full hover:bg-slate-100 flex items-center justify-center"><i class="fa-solid fa-chevron-right text-[10px]"></i></button>
+                    <button type="button" onclick="openAddPageModal(true)" class="px-2 py-0.5 rounded-full bg-purple-100 text-gnPurple font-bold text-[10px]">±หน้า</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== GLOBAL MODAL ==================== -->
+    <div id="app-modal" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-3xl shadow-2xl overflow-hidden animate-[fadeIn_0.15s_ease-out]">
+            <div class="px-5 py-3.5 bg-gnPurple text-white flex items-center justify-between">
+                <h3 id="modal-title" class="font-bold text-sm sm:text-base">หัวข้อ</h3>
+                <button type="button" onclick="closeModal()" class="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center text-xs">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="modal-body" class="p-5 max-h-[75vh] overflow-y-auto text-sm"></div>
+            <div id="modal-footer" class="px-5 py-3 bg-slate-50 border-t border-slate-100 flex items-center justify-end gap-2"></div>
+        </div>
+    </div>
+
+    <!-- ==================== TOAST NOTIFICATION ==================== -->
+    <div id="toast-box" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
+        <div id="toast-msg" class="px-4 py-2 rounded-full bg-slate-900/90 text-white text-xs font-bold shadow-lg whitespace-nowrap"></div>
+    </div>
+
+    <script>
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        }
+
+        // ==================== APP STATE ====================
+        const STORAGE_KEY = 'enjoy_note_v1_data';
+        let appData = {
+            user: null,
+            customLogoUrl: '',
+            folders: ['ทั้งหมด', 'วิชาเรียน', 'สรุปสอบ', 'ไฟล์ PDF'],
+            selectedFolder: 'ทั้งหมด',
+            docs: []
+        };
+
+        let activePane = 1;
+        let isSplitScreen = false;
+        let isSplitHorizontal = false;
+
+        const paneState = {
+            1: { doc: null, pageIndex: 0, zoom: 1, pdfDoc: null, pdfCache: {}, undoStack: [], redoStack: [] },
+            2: { doc: null, pageIndex: 0, zoom: 1, pdfDoc: null, pdfCache: {}, undoStack: [], redoStack: [] }
+        };
+
+        let currentTool = 'pen';
+        let currentColor = '#0F172A';
+        let currentSize = 2.5;
+        let highlighterLayer = 'back';
+        let palmRejectionEnabled = true;
+
+        let activePointerId = null;
+        let activeDrawingPane = null;
+        let currentStroke = null;
+        let lassoPoints = [];
+        let initialPinchDist = 0;
+        let initialPinchZoom = 1;
+
+        // ==================== INITIALIZATION ====================
+        function loadFromStorage() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    if (parsed && Array.isArray(parsed.docs)) {
+                        appData = { ...appData, ...parsed };
+                    }
+                }
+            } catch (e) {
+                console.warn('Storage load error:', e);
+            }
+            if (!appData.docs || appData.docs.length === 0) {
+                appData.docs = [
+                    {
+                        id: 'doc_welcome_1',
+                        title: 'สมุดจดสรุปเลคเชอร์',
+                        folder: 'วิชาเรียน',
+                        coverColor: '#7C3AED',
+                        updatedAt: Date.now(),
+                        pages: [createEmptyPage('lined')]
+                    },
+                    {
+                        id: 'doc_cornell_2',
+                        title: 'โน๊ตแบบ Cornell',
+                        folder: 'สรุปสอบ',
+                        coverColor: '#EC4899',
+                        updatedAt: Date.now() - 3600000,
+                        pages: [createEmptyPage('cornell')]
+                    }
+                ];
+            }
+        }
+
+        function saveAllToStorage(showNotify = false) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+                if (showNotify) showToast('บันทึกสมุดโน๊ตเรียบร้อยแล้ว ☁️');
+            } catch (e) {
+                if (showNotify) showToast('พื้นที่จัดเก็บใกล้เต็ม แนะนำให้ลบไฟล์ขนาดใหญ่บางส่วน');
+            }
+        }
+
+        function createEmptyPage(template = 'lined') {
+            return {
+                id: 'pg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                template: template,
+                width: 595,
+                height: 842,
+                pdfPageNum: null,
+                strokes: [],
+                items: []
+            };
+        }
+
+        // ==================== AUTH / LOGIN ====================
+        function applyCustomAppLogo() {
+            const url = appData.customLogoUrl;
+            const loginWrap = document.getElementById('custom-logo-circle-wrap');
+            const loginImg = document.getElementById('custom-logo-img-login');
+            const loginSvg = document.getElementById('default-logo-svg-login');
+            const headerImg = document.getElementById('custom-logo-img-header');
+            const headerSvg = document.getElementById('default-logo-svg-header');
+
+            if (url) {
+                if (loginImg && loginWrap && loginSvg) {
+                    loginImg.src = url;
+                    loginWrap.classList.remove('hidden');
+                    loginSvg.classList.add('hidden');
+                }
+                if (headerImg && headerSvg) {
+                    headerImg.src = url;
+                    headerImg.classList.remove('hidden');
+                    headerSvg.classList.add('hidden');
+                }
+            }
+        }
+
+        function handleCustomAppLogoUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    const canvas = document.createElement('canvas');
+                    const maxDim = 320;
+                    const scale = Math.min(1, maxDim / Math.max(img.width, img.height));
+                    canvas.width = Math.round(img.width * scale);
+                    canvas.height = Math.round(img.height * scale);
+                    canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                    appData.customLogoUrl = canvas.toDataURL('image/jpeg', 0.88);
+                    applyCustomAppLogo();
+                    saveAllToStorage(false);
+                    showToast('เปลี่ยนรูปภาพโลโก้แอปเรียบร้อยแล้ว! ✨');
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            input.value = '';
+        }
+
+        function handleLogin(isGuest) {
+            const emailInput = document.getElementById('login-email').value.trim();
+            const nameInput = document.getElementById('login-name').value.trim();
+            if (!isGuest && !emailInput) {
+                showToast('กรุณากรอกอีเมล Gmail หรือกด "เข้าใช้งานทันที" ครับ');
+                return;
+            }
+            appData.user = {
+                email: isGuest ? 'offline@enjoynote.app' : emailInput,
+                name: nameInput || (emailInput ? emailInput.split('@')[0] : 'นักเรียนคนเก่ง')
+            };
+            saveAllToStorage(false);
+            enterLibraryScreen();
+        }
+
+        function logoutUser() {
+            appData.user = null;
+            saveAllToStorage(false);
+            document.getElementById('library-screen').classList.add('hidden');
+            document.getElementById('workspace-screen').classList.add('hidden');
+            document.getElementById('login-screen').classList.remove('hidden');
+        }
+
+        function enterLibraryScreen() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('workspace-screen').classList.add('hidden');
+            document.getElementById('library-screen').classList.remove('hidden');
+            document.getElementById('user-greeting').textContent = `สวัสดี, ${appData.user?.name || 'นักเรียนคนเก่ง'}`;
+            renderLibrary();
+        }
+
+        // ==================== LIBRARY ====================
+        function renderLibrary() {
+            const chipsEl = document.getElementById('folder-chips');
+            chipsEl.innerHTML = appData.folders.map(f => `
+                <button type="button" onclick="selectFolder('${f}')" class="px-3 py-1.5 rounded-xl text-xs font-bold shrink-0 transition ${appData.selectedFolder === f ? 'bg-gnPurple text-white shadow-xs' : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'}">
+                    ${f}
+                </button>
+            `).join('');
+
+            const query = (document.getElementById('lib-search-input').value || '').toLowerCase().trim();
+            const filtered = appData.docs.filter(doc => {
+                const matchFolder = appData.selectedFolder === 'ทั้งหมด' || doc.folder === appData.selectedFolder;
+                const matchQuery = !query || doc.title.toLowerCase().includes(query);
+                return matchFolder && matchQuery;
+            });
+
+            const gridEl = document.getElementById('library-grid');
+            if (filtered.length === 0) {
+                gridEl.innerHTML = `
+                    <div class="col-span-full py-16 text-center text-slate-400">
+                        <i class="fa-regular fa-folder-open text-4xl mb-2"></i>
+                        <p class="text-sm font-bold">ยังไม่มีสมุดโน๊ตในหมวดนี้</p>
+                        <p class="text-xs mt-1">กดปุ่ม "สร้างสมุดใหม่" หรือ "นำเข้า PDF" ด้านบนได้เลยครับ</p>
+                    </div>
+                `;
+                return;
+            }
+
+            gridEl.innerHTML = filtered.map(doc => `
+                <div onclick="openDocumentInWorkspace('${doc.id}')" class="group bg-white rounded-2xl border border-slate-200/80 shadow-xs hover:shadow-md transition cursor-pointer overflow-hidden flex flex-col">
+                    <div class="h-36 p-3 flex flex-col justify-between relative" style="background: linear-gradient(135deg, ${doc.coverColor || '#7C3AED'}, #4A2545);">
+                        <div class="flex items-center justify-between">
+                            <span class="px-2 py-0.5 rounded-md bg-black/25 text-white text-[10px] font-bold">${doc.isPdf ? 'PDF' : doc.folder}</span>
+                            <button type="button" onclick="event.stopPropagation(); deleteDocument('${doc.id}')" class="w-6 h-6 rounded-full bg-black/25 hover:bg-rose-500 text-white text-[10px] flex items-center justify-center opacity-80 group-hover:opacity-100">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                        <div class="bg-white/95 rounded-xl p-2 shadow-xs">
+                            <div class="font-extrabold text-xs text-slate-800 truncate">${doc.title}</div>
+                            <div class="text-[10px] text-slate-500 mt-0.5">${doc.pages.length} หน้า</div>
+                        </div>
+                    </div>
+                    <div class="px-3 py-2 flex items-center justify-between text-[11px] text-slate-500 bg-white">
+                        <span>แก้ไขล่าสุด</span>
+                        <span class="font-bold text-gnPurple">เปิดอ่าน ➔</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectFolder(folder) {
+            appData.selectedFolder = folder;
+            renderLibrary();
+        }
+
+        function deleteDocument(docId) {
+            if (appData.docs.length <= 1) return showToast('ต้องมีสมุดอย่างน้อย 1 เล่มครับ');
+            appData.docs = appData.docs.filter(d => d.id !== docId);
+            saveAllToStorage(false);
+            renderLibrary();
+            showToast('ลบสมุดเรียบร้อยแล้ว');
+        }
+
+        function openNewNotebookModal() {
+            showModal(
+                'สร้างสมุดโน๊ตเล่มใหม่ 📓',
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อสมุดโน๊ต</label>
+                        <input type="text" id="new-doc-title" placeholder="เช่น สรุปชีววิทยา, จดศัพท์อังกฤษ..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">หมวดหมู่</label>
+                            <select id="new-doc-folder" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+                                <option value="วิชาเรียน">วิชาเรียน</option>
+                                <option value="สรุปสอบ">สรุปสอบ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 mb-1">ลายกระดาษเริ่มต้น</label>
+                            <select id="new-doc-template" class="w-full px-2.5 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+                                <option value="lined">กระดาษมีเส้น</option>
+                                <option value="grid">กระดาษกราฟตาราง</option>
+                                <option value="cornell">กระดาษ Cornell</option>
+                                <option value="dotted">กระดาษจุดไข่ปลา</option>
+                                <option value="blank">กระดาษเปล่าสีขาว</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">สีหน้าปก</label>
+                        <div class="flex gap-2">
+                            ${['#7C3AED', '#EC4899', '#2563EB', '#059669', '#D97706'].map((c, idx) => `
+                                <label class="cursor-pointer">
+                                    <input type="radio" name="new-doc-color" value="${c}" ${idx === 0 ? 'checked' : ''} class="hidden peer">
+                                    <span class="block w-8 h-8 rounded-full peer-checked:ring-2 ring-offset-2 ring-slate-800" style="background:${c}"></span>
+                                </label>
+                            `).join('')}
+                        </div>
+                    </div>
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'สร้างสมุดเลย',
+                        class: 'bg-gnPurple text-white',
+                        onClick: () => {
+                            const title = document.getElementById('new-doc-title').value.trim() || 'สมุดโน๊ตใหม่';
+                            const folder = document.getElementById('new-doc-folder').value;
+                            const template = document.getElementById('new-doc-template').value;
+                            const color = document.querySelector('input[name="new-doc-color"]:checked')?.value || '#7C3AED';
+                            const newDoc = {
+                                id: 'doc_' + Date.now(),
+                                title,
+                                folder,
+                                coverColor: color,
+                                updatedAt: Date.now(),
+                                pages: [createEmptyPage(template)]
+                            };
+                            appData.docs.unshift(newDoc);
+                            saveAllToStorage(false);
+                            closeModal();
+                            openDocumentInWorkspace(newDoc.id);
+                        }
+                    }
+                ]
+            );
+        }
+
+        async function handleImportPdfFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            showToast('กำลังนำเข้าไฟล์ PDF... ⏳');
+            try {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64Data = e.target.result;
+                    const loadingTask = pdfjsLib.getDocument({ data: atob(base64Data.split(',')[1]) });
+                    const pdfDoc = await loadingTask.promise;
+                    const pages = [];
+                    for (let i = 1; i <= pdfDoc.numPages; i++) {
+                        const page = await pdfDoc.getPage(i);
+                        const vp = page.getViewport({ scale: 1 });
+                        pages.push({
+                            id: 'pdf_pg_' + Date.now() + '_' + i,
+                            template: 'blank',
+                            width: Math.round(vp.width) || 595,
+                            height: Math.round(vp.height) || 842,
+                            pdfPageNum: i,
+                            strokes: [],
+                            items: []
+                        });
+                    }
+                    const newPdfDoc = {
+                        id: 'pdf_' + Date.now(),
+                        title: file.name.replace(/\.pdf$/i, ''),
+                        folder: 'ไฟล์ PDF',
+                        isPdf: true,
+                        pdfDataUrl: base64Data,
+                        coverColor: '#E11D48',
+                        updatedAt: Date.now(),
+                        pages
+                    };
+                    appData.docs.unshift(newPdfDoc);
+                    saveAllToStorage(false);
+                    renderLibrary();
+                    openDocumentInWorkspace(newPdfDoc.id);
+                    showToast(`นำเข้า PDF สำเร็จ (${pdfDoc.numPages} หน้า)!`);
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                showToast('ไม่สามารถเปิดไฟล์ PDF นี้ได้ครับ');
+            }
+            input.value = '';
+        }
+
+        async function handleInsertPdfPagesIntoCurrentDoc(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const state = paneState[activePane];
+            if (!state.doc) return;
+
+            showToast('กำลังแทรกหน้า PDF ลงในสมุด... ⏳');
+            try {
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    const base64Data = e.target.result;
+                    const loadingTask = pdfjsLib.getDocument({ data: atob(base64Data.split(',')[1]) });
+                    const pdfDoc = await loadingTask.promise;
+                    const newPages = [];
+                    for (let i = 1; i <= pdfDoc.numPages; i++) {
+                        const page = await pdfDoc.getPage(i);
+                        const vp = page.getViewport({ scale: 1 });
+                        newPages.push({
+                            id: 'pdf_ins_' + Date.now() + '_' + i,
+                            template: 'blank',
+                            width: Math.round(vp.width) || 595,
+                            height: Math.round(vp.height) || 842,
+                            pdfPageNum: i,
+                            customPdfDataUrl: base64Data,
+                            strokes: [],
+                            items: []
+                        });
+                    }
+                    const insertAt = state.pageIndex + 1;
+                    state.doc.pages.splice(insertAt, 0, ...newPages);
+                    state.pageIndex = insertAt;
+                    saveAllToStorage(false);
+                    await renderPane(activePane);
+                    showToast(`แทรกไฟล์ PDF เพิ่ม ${pdfDoc.numPages} หน้าเรียบร้อย!`);
+                };
+                reader.readAsDataURL(file);
+            } catch (err) {
+                showToast('ไม่สามารถแทรกไฟล์ PDF นี้ได้ครับ');
+            }
+            input.value = '';
+        }
+
+        // ==================== WORKSPACE & DUAL PANE ENGINE ====================
+        async function openDocumentInWorkspace(docId) {
+            const doc = appData.docs.find(d => d.id === docId);
+            if (!doc) return;
+
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('library-screen').classList.add('hidden');
+            document.getElementById('workspace-screen').classList.remove('hidden');
+
+            activePane = 1;
+            await loadDocIntoPane(1, doc);
+            fitZoom(1);
+
+            if (isSplitScreen && paneState[2].doc) {
+                await renderPane(2);
+            }
+        }
+
+        async function loadDocIntoPane(paneNum, doc) {
+            const state = paneState[paneNum];
+            state.doc = doc;
+            state.pageIndex = 0;
+            state.undoStack = [];
+            state.redoStack = [];
+            state.pdfDoc = null;
+            state.pdfCache = {};
+
+            if (doc.isPdf && doc.pdfDataUrl && window.pdfjsLib) {
+                try {
+                    const raw = atob(doc.pdfDataUrl.split(',')[1]);
+                    state.pdfDoc = await pdfjsLib.getDocument({ data: raw }).promise;
+                } catch (e) {
+                    console.warn('PDF load error:', e);
+                }
+            }
+
+            if (paneNum === 1) {
+                document.getElementById('workspace-doc-title').textContent = doc.title;
+            } else {
+                document.getElementById('pane-2-doc-title').textContent = doc.title;
+            }
+
+            await renderPane(paneNum);
+        }
+
+        function closeWorkspaceToLibrary() {
+            saveAllToStorage(false);
+            enterLibraryScreen();
+        }
+
+        function setActivePane(paneNum) {
+            activePane = paneNum;
+            const p1Badge = document.getElementById('pane-1-badge');
+            if (isSplitScreen) {
+                p1Badge.classList.remove('hidden');
+                p1Badge.textContent = activePane === 1 ? 'จอที่ 1 (กำลังใช้งาน)' : 'จอที่ 1';
+            } else {
+                p1Badge.classList.add('hidden');
+            }
+        }
+
+        // ==================== SPLIT SCREEN CONTROLS ====================
+        async function toggleSplitScreen() {
+            isSplitScreen = !isSplitScreen;
+            const pane2 = document.getElementById('pane-2');
+            const btnSplit = document.getElementById('btn-split-screen');
+            const p1Badge = document.getElementById('pane-1-badge');
+
+            if (isSplitScreen) {
+                pane2.classList.remove('hidden');
+                p1Badge.classList.remove('hidden');
+                btnSplit.classList.add('bg-emerald-500', 'text-white');
+                btnSplit.classList.remove('bg-white/15');
+
+                if (!paneState[2].doc) {
+                    const otherDoc = appData.docs.find(d => d.id !== paneState[1].doc?.id) || paneState[1].doc;
+                    if (otherDoc) await loadDocIntoPane(2, otherDoc);
+                }
+                setTimeout(() => {
+                    fitZoom(1);
+                    fitZoom(2);
+                }, 60);
+                openSplitNotePickerModal();
+            } else {
+                pane2.classList.add('hidden');
+                p1Badge.classList.add('hidden');
+                btnSplit.classList.remove('bg-emerald-500');
+                btnSplit.classList.add('bg-white/15');
+                activePane = 1;
+                setTimeout(() => fitZoom(1), 60);
+            }
+        }
+
+        function toggleSplitOrientation() {
+            isSplitHorizontal = !isSplitHorizontal;
+            const container = document.getElementById('split-container');
+            const pane2 = document.getElementById('pane-2');
+            if (isSplitHorizontal) {
+                container.classList.remove('flex-col');
+                container.classList.add('flex-row');
+                pane2.classList.remove('border-t-2');
+                pane2.classList.add('border-l-2');
+            } else {
+                container.classList.remove('flex-row');
+                container.classList.add('flex-col');
+                pane2.classList.remove('border-l-2');
+                pane2.classList.add('border-t-2');
+            }
+            setTimeout(() => {
+                fitZoom(1);
+                fitZoom(2);
+            }, 60);
+        }
+
+        async function swapSplitDocs() {
+            if (!paneState[1].doc || !paneState[2].doc) return;
+            const tempDoc = paneState[1].doc;
+            const tempIdx = paneState[1].pageIndex;
+            await loadDocIntoPane(1, paneState[2].doc);
+            paneState[1].pageIndex = paneState[2].pageIndex;
+            await renderPane(1);
+
+            await loadDocIntoPane(2, tempDoc);
+            paneState[2].pageIndex = tempIdx;
+            await renderPane(2);
+            fitZoom(1);
+            fitZoom(2);
+            showToast('สลับตำแหน่งสมุดระหว่างจอที่ 1 และจอที่ 2 แล้ว');
+        }
+
+        function openSplitNotePickerModal() {
+            const renderList = (filterText = '', folderFilter = 'ทั้งหมด') => {
+                const q = filterText.toLowerCase().trim();
+                const list = appData.docs.filter(d => {
+                    const matchF = folderFilter === 'ทั้งหมด' || d.folder === folderFilter;
+                    const matchQ = !q || d.title.toLowerCase().includes(q);
+                    return matchF && matchQ;
+                });
+                const container = document.getElementById('split-picker-list');
+                if (!container) return;
+                if (list.length === 0) {
+                    container.innerHTML = `<div class="py-8 text-center text-xs text-slate-400">ไม่พบสมุดโน๊ตหรือไฟล์ PDF ที่ค้นหา</div>`;
+                    return;
+                }
+                container.innerHTML = list.map(d => `
+                    <button type="button" onclick="selectDocForPane2('${d.id}')" class="w-full text-left p-2.5 rounded-xl border border-slate-200 hover:border-gnPurple hover:bg-purple-50/60 flex items-center justify-between gap-2 transition">
+                        <div class="flex items-center gap-2.5 min-w-0">
+                            <span class="w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0" style="background:${d.coverColor || '#7C3AED'}">
+                                ${d.isPdf ? 'PDF' : '📓'}
+                            </span>
+                            <div class="min-w-0">
+                                <div class="font-bold text-xs text-slate-800 truncate">${d.title}</div>
+                                <div class="text-[10px] text-slate-500">${d.folder} • ${d.pages.length} หน้า</div>
+                            </div>
+                        </div>
+                        <span class="px-2 py-1 rounded-lg bg-gnPurple text-white text-[10px] font-bold shrink-0">เปิดจอที่ 2</span>
+                    </button>
+                `).join('');
+            };
+
+            showModal(
+                'เลือกสมุดโน๊ต / ไฟล์ PDF เปิดคู่ในจอที่ 2 🔍',
+                `
+                <div class="space-y-3">
+                    <input type="text" id="split-picker-search" placeholder="พิมพ์ชื่อสมุดโน๊ต หรือชื่อไฟล์ PDF..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:border-gnPurple">
+                    <div id="split-picker-list" class="space-y-2 max-h-[45vh] overflow-y-auto"></div>
+                </div>
+                `,
+                [
+                    { text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() }
+                ]
+            );
+            renderList();
+            document.getElementById('split-picker-search').addEventListener('input', (e) => renderList(e.target.value));
+        }
+
+        async function selectDocForPane2(docId) {
+            const doc = appData.docs.find(d => d.id === docId);
+            if (!doc) return;
+            await loadDocIntoPane(2, doc);
+            fitZoom(2);
+            closeModal();
+            showToast(`เปิด "${doc.title}" ในจอที่ 2 แล้ว`);
+        }
+
+        // ==================== RENDER PAGE ====================
+        async function renderPane(paneNum) {
+            const state = paneState[paneNum];
+            if (!state.doc || !state.doc.pages || state.doc.pages.length === 0) return;
+
+            if (state.pageIndex >= state.doc.pages.length) state.pageIndex = state.doc.pages.length - 1;
+            if (state.pageIndex < 0) state.pageIndex = 0;
+
+            const page = state.doc.pages[state.pageIndex];
+            const wrapper = document.getElementById(`paper-wrapper-${paneNum}`);
+            const pdfCanvas = document.getElementById(`pdf-canvas-${paneNum}`);
+            const drawCanvas = document.getElementById(`draw-canvas-${paneNum}`);
+            const mediaLayer = document.getElementById(`media-layer-${paneNum}`);
+
+            const w = page.width || 595;
+            const h = page.height || 842;
+            wrapper.style.width = w + 'px';
+            wrapper.style.height = h + 'px';
+            wrapper.style.minWidth = w + 'px';
+            wrapper.style.minHeight = h + 'px';
+
+            wrapper.classList.remove('paper-grid', 'paper-lined', 'paper-cornell', 'paper-dotted');
+            if (!page.pdfPageNum) {
+                if (page.template === 'grid') wrapper.classList.add('paper-grid');
+                else if (page.template === 'lined') wrapper.classList.add('paper-lined');
+                else if (page.template === 'cornell') wrapper.classList.add('paper-cornell');
+                else if (page.template === 'dotted') wrapper.classList.add('paper-dotted');
+            }
+
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            drawCanvas.width = w * dpr;
+            drawCanvas.height = h * dpr;
+
+            const pdfCtx = pdfCanvas.getContext('2d');
+            let activePdfDoc = state.pdfDoc;
+            if (page.customPdfDataUrl && window.pdfjsLib) {
+                if (!state.pdfCache[page.customPdfDataUrl]) {
+                    try {
+                        const raw = atob(page.customPdfDataUrl.split(',')[1]);
+                        state.pdfCache[page.customPdfDataUrl] = await pdfjsLib.getDocument({ data: raw }).promise;
+                    } catch (e) {}
+                }
+                activePdfDoc = state.pdfCache[page.customPdfDataUrl];
+            }
+
+            if (page.pdfPageNum && activePdfDoc) {
+                pdfCanvas.width = w * dpr;
+                pdfCanvas.height = h * dpr;
+                try {
+                    const pdfPage = await activePdfDoc.getPage(page.pdfPageNum);
+                    const vp = pdfPage.getViewport({ scale: dpr });
+                    await pdfPage.render({ canvasContext: pdfCtx, viewport: vp }).promise;
+                } catch (e) {
+                    pdfCtx.clearRect(0, 0, pdfCanvas.width, pdfCanvas.height);
+                }
+            } else {
+                pdfCanvas.width = w;
+                pdfCanvas.height = h;
+                pdfCtx.clearRect(0, 0, w, h);
+            }
+
+            document.getElementById(`page-indicator-${paneNum}`).textContent = `${state.pageIndex + 1} / ${state.doc.pages.length}`;
+
+            renderVectorInk(paneNum);
+            renderMediaItems(paneNum, mediaLayer, page);
+        }
+
+        function renderVectorInk(paneNum) {
+            const state = paneState[paneNum];
+            const page = state.doc.pages[state.pageIndex];
+            const w = page.width || 595;
+            const h = page.height || 842;
+
+            const hlBackSvg = document.getElementById(`hl-back-svg-${paneNum}`);
+            const inkSvg = document.getElementById(`vector-ink-svg-${paneNum}`);
+            const hlFrontSvg = document.getElementById(`hl-front-svg-${paneNum}`);
+
+            [hlBackSvg, inkSvg, hlFrontSvg].forEach(svg => {
+                svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+                svg.innerHTML = '';
+            });
+
+            (page.strokes || []).forEach(st => {
+                if (!st.points || st.points.length === 0) return;
+                const d = st.points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ');
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', d);
+                path.setAttribute('fill', 'none');
+                path.setAttribute('stroke', st.color);
+                path.setAttribute('stroke-width', st.size);
+
+                if (st.tool === 'highlighter') {
+                    path.setAttribute('stroke-linecap', 'square');
+                    path.setAttribute('stroke-linejoin', 'miter');
+                    if (st.layer === 'front') {
+                        path.setAttribute('stroke-opacity', '0.26');
+                        hlFrontSvg.appendChild(path);
+                    } else {
+                        path.setAttribute('stroke-opacity', '0.45');
+                        hlBackSvg.appendChild(path);
+                    }
+                } else {
+                    path.setAttribute('stroke-linecap', 'round');
+                    path.setAttribute('stroke-linejoin', 'round');
+                    inkSvg.appendChild(path);
+                }
+            });
+        }
+
+        function renderMediaItems(paneNum, container, page) {
+            container.innerHTML = '';
+            (page.items || []).forEach((item, idx) => {
+                const el = document.createElement('div');
+                el.className = 'absolute group';
+                el.style.left = (item.x || 60) + 'px';
+                el.style.top = (item.y || 80) + 'px';
+                el.style.zIndex = item.type === 'text' ? '12' : '15';
+
+                const controls = `
+                    <div class="absolute -top-6 right-0 hidden group-hover:flex items-center gap-1 bg-slate-800 text-white px-1.5 py-0.5 rounded-md text-[10px] shadow-sm z-30">
+                        <span class="cursor-move px-1" title="ลากย้าย">✥</span>
+                        <button type="button" onclick="event.stopPropagation(); removeMediaItem(${paneNum}, ${idx})" class="text-rose-300 hover:text-rose-100 px-1" title="ลบ">✕</button>
+                    </div>
+                `;
+
+                if (item.type === 'text') {
+                    el.innerHTML = `
+                        ${controls}
+                        <div contenteditable="true" onblur="updateTextItem(${paneNum}, ${idx}, this.innerText)" class="min-w-[80px] px-1.5 py-0.5 rounded border border-transparent hover:border-purple-300 focus:border-gnPurple focus:bg-white/80 outline-none font-medium whitespace-pre-wrap" style="color:${item.color || '#0F172A'}; font-size:${item.fontSize || 16}px;">${item.text || 'พิมพ์ข้อความ...'}</div>
+                    `;
+                } else if (item.type === 'image') {
+                    el.style.width = (item.width || 200) + 'px';
+                    el.innerHTML = `
+                        ${controls}
+                        <img src="${item.url}" class="w-full rounded-xl shadow-sm border border-slate-200 pointer-events-none" alt="รูปภาพ">
+                    `;
+                } else if (item.type === 'sticker') {
+                    el.innerHTML = `
+                        ${controls}
+                        <div class="text-4xl select-none drop-shadow-xs">${item.emoji || '⭐'}</div>
+                    `;
+                } else if (item.type === 'link') {
+                    el.style.width = (item.width || 260) + 'px';
+                    const ytId = extractYoutubeId(item.url);
+                    el.innerHTML = `
+                        ${controls}
+                        <div class="bg-blue-50/95 border border-blue-200 rounded-xl px-2.5 py-2 shadow-sm flex items-center justify-between gap-2 text-xs">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div class="w-7 h-7 rounded-lg ${ytId ? 'bg-rose-600' : 'bg-blue-600'} text-white flex items-center justify-center shrink-0">
+                                    <i class="fa-solid ${ytId ? 'fa-play' : 'fa-link'}"></i>
+                                </div>
+                                <div class="min-w-0">
+                                    <div class="font-bold text-slate-900 truncate">${item.title || 'ลิงก์อ้างอิง'}</div>
+                                    <div class="text-[10px] text-slate-500 truncate">${item.url}</div>
+                                </div>
+                            </div>
+                            <button type="button" onclick="event.stopPropagation(); openInAppWebViewer('${encodeURIComponent(item.url)}', '${encodeURIComponent(item.title || 'เนื้อหาเว็บ')}')" class="px-2.5 py-1 ${ytId ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-lg font-bold text-[10px] shrink-0">ดูในแอป</button>
+                        </div>
+                    `;
+                } else if (item.type === 'video') {
+                    el.style.width = (item.width || 280) + 'px';
+                    const embedInfo = parseUniversalVideoUrl(item.url);
+                    if (embedInfo.isYoutube) {
+                        el.innerHTML = `
+                            ${controls}
+                            <div class="bg-slate-900 rounded-xl overflow-hidden shadow-md border border-slate-700">
+                                <div class="px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-bold flex items-center justify-between gap-2">
+                                    <span class="truncate"><i class="fa-brands fa-youtube text-rose-500 mr-1"></i> ${item.title || 'วิดีโอ YouTube'}</span>
+                                </div>
+                                <div onclick="event.stopPropagation(); openInAppWebViewer('${encodeURIComponent(item.url)}', '${encodeURIComponent(item.title || 'วิดีโอ YouTube')}')" class="block relative group/yt cursor-pointer">
+                                    <img src="https://i.ytimg.com/vi/${embedInfo.videoId}/hqdefault.jpg" class="w-full h-40 object-cover opacity-90 group-hover/yt:opacity-100 transition" alt="YouTube Thumbnail">
+                                    <div class="absolute inset-0 bg-black/30 flex flex-col items-center justify-center gap-1.5">
+                                        <div class="w-12 h-12 rounded-full bg-rose-600 text-white flex items-center justify-center shadow-lg">
+                                            <i class="fa-solid fa-play text-lg ml-0.5"></i>
+                                        </div>
+                                        <span class="px-2.5 py-1 rounded-full bg-black/75 text-white text-[10px] font-bold">แตะเล่นในแอปทันที</span>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (embedInfo.mode === 'video') {
+                        el.innerHTML = `
+                            ${controls}
+                            <div class="bg-slate-900 rounded-xl overflow-hidden shadow-md border border-slate-700">
+                                <div class="px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-bold truncate">
+                                    <i class="fa-solid fa-film text-rose-400 mr-1"></i> ${item.title || 'วิดีโอประกอบ'}
+                                </div>
+                                <video src="${embedInfo.src}" controls playsinline class="w-full max-h-48 bg-black"></video>
+                            </div>
+                        `;
+                    } else {
+                        el.innerHTML = `
+                            ${controls}
+                            <div class="bg-slate-900 rounded-xl overflow-hidden shadow-md border border-slate-700">
+                                <div class="px-2.5 py-1.5 bg-slate-800 text-white text-[10px] font-bold flex items-center justify-between gap-2">
+                                    <span class="truncate"><i class="fa-solid fa-film text-rose-400 mr-1"></i> ${item.title || 'วิดีโอ'}</span>
+                                    <button type="button" onclick="event.stopPropagation(); openInAppWebViewer('${encodeURIComponent(item.url)}', '${encodeURIComponent(item.title || 'วิดีโอ')}')" class="text-[9px] bg-rose-600 px-2 py-0.5 rounded shrink-0">ดูในแอป</button>
+                                </div>
+                                <iframe src="${embedInfo.src}" class="w-full h-44 border-0 bg-black" allowfullscreen></iframe>
+                            </div>
+                        `;
+                    }
+                } else if (item.type === 'audio') {
+                    el.style.width = (item.width || 270) + 'px';
+                    el.innerHTML = `
+                        ${controls}
+                        <div class="bg-emerald-50/95 border border-emerald-200 rounded-xl p-2 shadow-sm">
+                            <div class="flex items-center justify-between gap-1 text-[11px] font-bold text-emerald-800 mb-1">
+                                <span class="truncate"><i class="fa-solid fa-microphone-lines text-emerald-600 mr-1"></i> ${item.title || 'บันทึกเสียง'}</span>
+                                <button type="button" onclick="event.stopPropagation(); shareOrDownloadAudioData('${item.url}', '${encodeURIComponent(item.title || 'บันทึกเสียง')}')" class="px-1.5 py-0.5 rounded bg-emerald-600 text-white hover:bg-emerald-700 text-[9px] flex items-center gap-1 shrink-0">
+                                    <i class="fa-solid fa-share-nodes"></i> ส่งต่อ
+                                </button>
+                            </div>
+                            <audio src="${item.url}" controls class="w-full h-8"></audio>
+                        </div>
+                    `;
+                }
+
+                makeItemDraggable(el, paneNum, idx);
+                container.appendChild(el);
+            });
+        }
+
+        function makeItemDraggable(el, paneNum, idx) {
+            let startX = 0, startY = 0, origX = 0, origY = 0, dragging = false;
+            el.addEventListener('pointerdown', (e) => {
+                if (e.target.closest('button, a, input, audio, video, iframe') || e.target.isContentEditable) return;
+                dragging = true;
+                startX = e.clientX;
+                startY = e.clientY;
+                const item = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex].items[idx];
+                origX = item.x || 60;
+                origY = item.y || 80;
+                el.setPointerCapture(e.pointerId);
+            });
+            el.addEventListener('pointermove', (e) => {
+                if (!dragging) return;
+                const zoom = paneState[paneNum].zoom || 1;
+                const dx = (e.clientX - startX) / zoom;
+                const dy = (e.clientY - startY) / zoom;
+                el.style.left = Math.max(0, origX + dx) + 'px';
+                el.style.top = Math.max(0, origY + dy) + 'px';
+            });
+            el.addEventListener('pointerup', (e) => {
+                if (!dragging) return;
+                dragging = false;
+                const zoom = paneState[paneNum].zoom || 1;
+                const item = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex].items[idx];
+                if (item) {
+                    item.x = Math.max(0, Math.round(origX + (e.clientX - startX) / zoom));
+                    item.y = Math.max(0, Math.round(origY + (e.clientY - startY) / zoom));
+                    saveAllToStorage(false);
+                }
+            });
+        }
+
+        function addMediaItemToPage(itemObj, targetPane = activePane) {
+            const state = paneState[targetPane];
+            if (!state.doc) return;
+            const page = state.doc.pages[state.pageIndex];
+            if (!page.items) page.items = [];
+            const offset = (page.items.length % 5) * 25;
+            page.items.push({
+                x: 60 + offset,
+                y: 80 + offset,
+                ...itemObj
+            });
+            saveAllToStorage(false);
+            renderPane(targetPane);
+        }
+
+        function updateTextItem(paneNum, idx, newText) {
+            const page = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex];
+            if (page && page.items[idx]) {
+                page.items[idx].text = newText;
+                saveAllToStorage(false);
+            }
+        }
+
+        function removeMediaItem(paneNum, idx) {
+            const page = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex];
+            if (page && page.items) {
+                page.items.splice(idx, 1);
+                saveAllToStorage(false);
+                renderPane(paneNum);
+            }
+        }
+
+        // ==================== ZOOM & NAVIGATION ====================
+        function adjustZoom(paneNum, delta) {
+            const state = paneState[paneNum];
+            state.zoom = Math.min(3, Math.max(0.4, +(state.zoom + delta).toFixed(2)));
+            applyZoom(paneNum);
+        }
+
+        function fitZoom(paneNum) {
+            const viewport = document.getElementById(`viewport-${paneNum}`);
+            const state = paneState[paneNum];
+            if (!viewport || !state.doc) return;
+            const page = state.doc.pages[state.pageIndex];
+            const availW = Math.max(240, viewport.clientWidth - 32);
+            state.zoom = Math.min(1.5, Math.max(0.4, +(availW / (page.width || 595)).toFixed(2)));
+            applyZoom(paneNum);
+        }
+
+        function applyZoom(paneNum) {
+            const state = paneState[paneNum];
+            const wrapper = document.getElementById(`paper-wrapper-${paneNum}`);
+            wrapper.style.transform = `scale(${state.zoom})`;
+            document.getElementById(`zoom-label-${paneNum}`).textContent = Math.round(state.zoom * 100) + '%';
+        }
+
+        async function changePage(paneNum, delta) {
+            const state = paneState[paneNum];
+            if (!state.doc) return;
+            const nextIdx = state.pageIndex + delta;
+            if (nextIdx >= 0 && nextIdx < state.doc.pages.length) {
+                state.pageIndex = nextIdx;
+                await renderPane(paneNum);
+            }
+        }
+
+        // ==================== PAGE MANAGEMENT & REORDERING ====================
+        function openAddPageModal(forPane2 = false) {
+            const targetPane = forPane2 ? 2 : activePane;
+            const state = paneState[targetPane];
+            if (!state.doc) return;
+
+            showModal(
+                `แทรกเพิ่มหน้าใหม่ (จอที่ ${targetPane}) 📄`,
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ตำแหน่งที่ต้องการแทรก</label>
+                        <select id="add-page-pos" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+                            <option value="after">ต่อจากหน้าปัจจุบัน (หน้า ${state.pageIndex + 2})</option>
+                            <option value="before">ก่อนหน้าปัจจุบัน (หน้า ${state.pageIndex + 1})</option>
+                            <option value="end">ท้ายสุดของเล่ม (หน้า ${state.doc.pages.length + 1})</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">รูปแบบหน้ากระดาษ</label>
+                        <select id="add-page-tpl" class="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+                            <option value="lined">กระดาษมีเส้น</option>
+                            <option value="grid">กระดาษกราฟตาราง</option>
+                            <option value="cornell">กระดาษ Cornell</option>
+                            <option value="dotted">กระดาษจุดไข่ปลา</option>
+                            <option value="blank">กระดาษเปล่าสีขาว</option>
+                        </select>
+                    </div>
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'เพิ่มหน้าทันที',
+                        class: 'bg-gnPurple text-white',
+                        onClick: async () => {
+                            const pos = document.getElementById('add-page-pos').value;
+                            const tpl = document.getElementById('add-page-tpl').value;
+                            const newPg = createEmptyPage(tpl);
+                            let insertIdx = state.pageIndex + 1;
+                            if (pos === 'before') insertIdx = state.pageIndex;
+                            else if (pos === 'end') insertIdx = state.doc.pages.length;
+
+                            state.doc.pages.splice(insertIdx, 0, newPg);
+                            state.pageIndex = insertIdx;
+                            saveAllToStorage(false);
+                            closeModal();
+                            await renderPane(targetPane);
+                            showToast(`แทรกหน้าใหม่ที่หน้า ${insertIdx + 1} เรียบร้อย!`);
+                        }
+                    }
+                ]
+            );
+        }
+
+        async function deleteCurrentPage(forPane2 = false) {
+            const targetPane = forPane2 ? 2 : activePane;
+            const state = paneState[targetPane];
+            if (!state.doc) return;
+            if (state.doc.pages.length <= 1) return showToast('ไม่สามารถลบหน้าสุดท้ายที่เหลืออยู่ได้ครับ');
+
+            state.doc.pages.splice(state.pageIndex, 1);
+            if (state.pageIndex >= state.doc.pages.length) state.pageIndex = state.doc.pages.length - 1;
+            saveAllToStorage(false);
+            await renderPane(targetPane);
+            showToast('ลบหน้าเรียบร้อยแล้ว');
+        }
+
+        function openPageThumbnailsModal(forPane2 = false) {
+            const targetPane = forPane2 ? 2 : activePane;
+            const state = paneState[targetPane];
+            if (!state.doc) return;
+
+            const renderGridHtml = () => {
+                return `
+                    <p class="text-xs text-slate-500 mb-3">แตะที่หน้าเพื่อเปิด หรือใช้ปุ่มลูกศรด้านล่างแต่ละหน้าเพื่อ <b>ย้ายสลับตำแหน่ง</b> (เช่น ย้ายหน้าสุดท้ายไปหน้าแรก)</p>
+                    <div class="grid grid-cols-3 gap-2.5">
+                        ${state.doc.pages.map((pg, idx) => `
+                            <div class="border-2 rounded-xl p-2 flex flex-col items-center justify-between bg-slate-50 ${idx === state.pageIndex ? 'border-gnPurple bg-purple-50' : 'border-slate-200'}">
+                                <div onclick="jumpToPageFromGrid(${targetPane}, ${idx})" class="w-full h-20 bg-white rounded-lg border border-slate-200 flex flex-col items-center justify-center cursor-pointer relative overflow-hidden">
+                                    <span class="text-sm font-extrabold text-gnPurple">หน้า ${idx + 1}</span>
+                                    <span class="text-[9px] text-slate-400">${pg.pdfPageNum ? 'PDF หน้า ' + pg.pdfPageNum : pg.template}</span>
+                                </div>
+                                <div class="flex items-center justify-between w-full mt-1.5 gap-0.5">
+                                    <button type="button" onclick="movePageOrder(${targetPane}, ${idx}, 0)" ${idx === 0 ? 'disabled' : ''} class="flex-1 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold disabled:opacity-30" title="ย้ายไปหน้าแรก">«</button>
+                                    <button type="button" onclick="movePageOrder(${targetPane}, ${idx}, ${idx - 1})" ${idx === 0 ? 'disabled' : ''} class="flex-1 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold disabled:opacity-30" title="เลื่อนขึ้น">‹</button>
+                                    <button type="button" onclick="movePageOrder(${targetPane}, ${idx}, ${idx + 1})" ${idx === state.doc.pages.length - 1 ? 'disabled' : ''} class="flex-1 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold disabled:opacity-30" title="เลื่อนลง">›</button>
+                                    <button type="button" onclick="movePageOrder(${targetPane}, ${idx}, ${state.doc.pages.length - 1})" ${idx === state.doc.pages.length - 1 ? 'disabled' : ''} class="flex-1 py-1 rounded bg-white border border-slate-200 text-[10px] font-bold disabled:opacity-30" title="ย้ายไปหน้าสุดท้าย">»</button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            };
+
+            showModal(
+                `จัดการ & ย้ายสลับหน้า (จอที่ ${targetPane}) 🗂️`,
+                `<div id="thumbnails-modal-wrap">${renderGridHtml()}</div>`,
+                [
+                    { text: 'ปิด', class: 'bg-gnPurple text-white', onClick: () => closeModal() }
+                ]
+            );
+        }
+
+        async function movePageOrder(paneNum, fromIdx, toIdx) {
+            const state = paneState[paneNum];
+            if (!state.doc || toIdx < 0 || toIdx >= state.doc.pages.length || fromIdx === toIdx) return;
+            const [moved] = state.doc.pages.splice(fromIdx, 1);
+            state.doc.pages.splice(toIdx, 0, moved);
+            state.pageIndex = toIdx;
+            saveAllToStorage(false);
+            await renderPane(paneNum);
+            openPageThumbnailsModal(paneNum === 2);
+            showToast(`ย้ายไปที่หน้า ${toIdx + 1} เรียบร้อย!`);
+        }
+
+        async function jumpToPageFromGrid(paneNum, idx) {
+            paneState[paneNum].pageIndex = idx;
+            closeModal();
+            await renderPane(paneNum);
+        }
+
+        // ==================== TOOLS, HIGHLIGHTER & PALM REJECTION ====================
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('bg-purple-100', 'text-gnPurple', 'ring-2', 'ring-gnPurple');
+            });
+            const activeBtn = document.getElementById(`tool-${tool}`);
+            if (activeBtn) {
+                activeBtn.classList.add('bg-purple-100', 'text-gnPurple', 'ring-2', 'ring-gnPurple');
+            }
+
+            const hlLayerBtn = document.getElementById('btn-hl-layer');
+            if (tool === 'highlighter') {
+                hlLayerBtn.classList.remove('hidden');
+                if (currentSize < 12) {
+                    currentSize = 16;
+                    document.getElementById('pen-size-label').textContent = currentSize;
+                }
+            } else {
+                hlLayerBtn.classList.add('hidden');
+                if (tool === 'pen' && currentSize > 10) {
+                    currentSize = 2.5;
+                    document.getElementById('pen-size-label').textContent = currentSize;
+                }
+            }
+
+            [1, 2].forEach(p => {
+                const c = document.getElementById(`draw-canvas-${p}`);
+                if (c) c.style.pointerEvents = tool === 'hand' ? 'none' : 'auto';
+            });
+        }
+
+        function setPenColor(hex) {
+            currentColor = hex;
+            document.querySelectorAll('.color-dot').forEach(dot => {
+                dot.classList.remove('ring-2', 'ring-offset-1', 'ring-gnPurple');
+                if (dot.dataset.color?.toLowerCase() === hex.toLowerCase()) {
+                    dot.classList.add('ring-2', 'ring-offset-1', 'ring-gnPurple');
+                }
+            });
+        }
+
+        function changePenSize(delta) {
+            currentSize = Math.min(36, Math.max(1, +(currentSize + delta).toFixed(1)));
+            document.getElementById('pen-size-label').textContent = currentSize;
+        }
+
+        function toggleHighlighterLayer() {
+            highlighterLayer = highlighterLayer === 'back' ? 'front' : 'back';
+            const btn = document.getElementById('btn-hl-layer');
+            btn.textContent = highlighterLayer === 'back' ? 'หลังตัวอักษร' : 'ทับบน (โปร่งแสง)';
+            showToast(highlighterLayer === 'back' ? 'ไฮไลท์จะอยู่ด้านหลังตัวอักษร' : 'ไฮไลท์ทับบนตัวอักษรแบบโปร่งแสงคมชัด');
+        }
+
+        function togglePalmRejection() {
+            palmRejectionEnabled = !palmRejectionEnabled;
+            const btn = document.getElementById('btn-palm-rejection');
+            const txt = document.getElementById('palm-status-text');
+            if (palmRejectionEnabled) {
+                btn.className = 'px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-700 font-bold text-[11px] flex items-center gap-1 shrink-0';
+                txt.textContent = 'กันฝ่ามือ: เปิด';
+                showToast('เปิดระบบกันฝ่ามือลั่นแล้ว วางมือเขียนได้สบาย!');
+            } else {
+                btn.className = 'px-2.5 py-1.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-600 font-bold text-[11px] flex items-center gap-1 shrink-0';
+                txt.textContent = 'กันฝ่ามือ: ปิด';
+                showToast('ปิดระบบกันฝ่ามือลั่นแล้ว');
+            }
+        }
+
+        function toggleMoreToolsDrawer() {
+            document.getElementById('more-tools-drawer').classList.toggle('hidden');
+        }
+
+        function toggleMediaSubDrawer() {
+            document.getElementById('media-sub-drawer').classList.toggle('hidden');
+        }
+
+        // ==================== DRAWING & MULTI-TOUCH PINCH/ZOOM ENGINE ====================
+        function attachCanvasEvents(paneNum) {
+            const viewport = document.getElementById(`viewport-${paneNum}`);
+            const canvas = document.getElementById(`draw-canvas-${paneNum}`);
+            if (!viewport || !canvas) return;
+
+            viewport.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    activePointerId = null;
+                    currentStroke = null;
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    initialPinchDist = Math.hypot(dx, dy);
+                    initialPinchZoom = paneState[paneNum].zoom || 1;
+                }
+            }, { passive: false });
+
+            viewport.addEventListener('touchmove', (e) => {
+                if (e.touches.length === 2 && initialPinchDist > 0) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.hypot(dx, dy);
+                    const scaleFactor = dist / initialPinchDist;
+                    paneState[paneNum].zoom = Math.min(3, Math.max(0.4, +(initialPinchZoom * scaleFactor).toFixed(2)));
+                    applyZoom(paneNum);
+                }
+            }, { passive: false });
+
+            viewport.addEventListener('touchend', () => {
+                initialPinchDist = 0;
+            });
+
+            canvas.addEventListener('pointerdown', (e) => {
+                setActivePane(paneNum);
+
+                if (palmRejectionEnabled && e.pointerType === 'touch') {
+                    if ((e.width && e.width > 34) || (e.height && e.height > 34)) {
+                        return;
+                    }
+                    if (activePointerId !== null && activePointerId !== e.pointerId) {
+                        return;
+                    }
+                }
+
+                const rect = canvas.getBoundingClientRect();
+                const page = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex];
+                const x = ((e.clientX - rect.left) / rect.width) * (page.width || 595);
+                const y = ((e.clientY - rect.top) / rect.height) * (page.height || 842);
+
+                if (currentTool === 'text') {
+                    addMediaItemToPage({ type: 'text', x, y, text: 'พิมพ์ข้อความ...', color: currentColor, fontSize: 16 }, paneNum);
+                    selectTool('pen');
+                    return;
+                }
+
+                activePointerId = e.pointerId;
+                activeDrawingPane = paneNum;
+                canvas.setPointerCapture(e.pointerId);
+
+                if (currentTool === 'eraser') {
+                    eraseAtPoint(paneNum, x, y);
+                    return;
+                }
+
+                if (currentTool === 'lasso-ai' || currentTool === 'snip-move' || currentTool === 'lasso-read') {
+                    lassoPoints = [{ x, y }];
+                    return;
+                }
+
+                currentStroke = {
+                    tool: currentTool,
+                    color: currentColor,
+                    size: currentSize,
+                    layer: currentTool === 'highlighter' ? highlighterLayer : 'ink',
+                    points: [{ x, y }]
+                };
+            });
+
+            canvas.addEventListener('pointermove', (e) => {
+                if (e.pointerId !== activePointerId || activeDrawingPane !== paneNum) return;
+                const rect = canvas.getBoundingClientRect();
+                const page = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex];
+                const x = ((e.clientX - rect.left) / rect.width) * (page.width || 595);
+                const y = ((e.clientY - rect.top) / rect.height) * (page.height || 842);
+
+                if (currentTool === 'eraser') {
+                    eraseAtPoint(paneNum, x, y);
+                    return;
+                }
+
+                const ctx = canvas.getContext('2d');
+                const dpr = canvas.width / (page.width || 595);
+
+                if (currentTool === 'lasso-ai' || currentTool === 'snip-move' || currentTool === 'lasso-read') {
+                    lassoPoints.push({ x, y });
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.save();
+                    ctx.scale(dpr, dpr);
+                    ctx.strokeStyle = currentTool === 'lasso-read' ? '#4F46E5' : '#9333EA';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 4]);
+                    ctx.beginPath();
+                    lassoPoints.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                    ctx.stroke();
+                    ctx.restore();
+                    return;
+                }
+
+                if (!currentStroke) return;
+                currentStroke.points.push({ x, y });
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.save();
+                ctx.scale(dpr, dpr);
+                ctx.strokeStyle = currentStroke.color;
+                ctx.lineWidth = currentStroke.size;
+                ctx.lineCap = currentStroke.tool === 'highlighter' ? 'square' : 'round';
+                ctx.lineJoin = currentStroke.tool === 'highlighter' ? 'miter' : 'round';
+                ctx.globalAlpha = currentStroke.tool === 'highlighter' ? 0.3 : 1;
+                ctx.beginPath();
+                currentStroke.points.forEach((p, idx) => idx === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+                ctx.stroke();
+                ctx.restore();
+            });
+
+            const endPointer = (e) => {
+                if (e.pointerId !== activePointerId) return;
+                const ctx = canvas.getContext('2d');
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+                if ((currentTool === 'lasso-ai' || currentTool === 'snip-move' || currentTool === 'lasso-read') && lassoPoints.length > 4) {
+                    const toolUsed = currentTool;
+                    const pts = [...lassoPoints];
+                    lassoPoints = [];
+                    activePointerId = null;
+                    activeDrawingPane = null;
+                    handleLassoAction(paneNum, toolUsed, pts);
+                    return;
+                }
+
+                if (currentStroke && currentStroke.points.length > 0) {
+                    const state = paneState[paneNum];
+                    const page = state.doc.pages[state.pageIndex];
+                    if (!page.strokes) page.strokes = [];
+                    page.strokes.push(currentStroke);
+                    state.undoStack.push(currentStroke);
+                    state.redoStack = [];
+                    renderVectorInk(paneNum);
+                    saveAllToStorage(false);
+                }
+
+                currentStroke = null;
+                activePointerId = null;
+                activeDrawingPane = null;
+            };
+
+            canvas.addEventListener('pointerup', endPointer);
+            canvas.addEventListener('pointercancel', endPointer);
+        }
+
+        function eraseAtPoint(paneNum, x, y) {
+            const state = paneState[paneNum];
+            const page = state.doc.pages[state.pageIndex];
+            if (!page.strokes || page.strokes.length === 0) return;
+            const threshold = Math.max(12, currentSize * 2);
+            const beforeLen = page.strokes.length;
+            page.strokes = page.strokes.filter(st => {
+                return !st.points.some(p => Math.hypot(p.x - x, p.y - y) < threshold);
+            });
+            if (page.strokes.length !== beforeLen) {
+                renderVectorInk(paneNum);
+                saveAllToStorage(false);
+            }
+        }
+
+        function undoStroke() {
+            const state = paneState[activePane];
+            const page = state.doc?.pages[state.pageIndex];
+            if (!page || !page.strokes || page.strokes.length === 0) return;
+            const popped = page.strokes.pop();
+            state.redoStack.push(popped);
+            renderVectorInk(activePane);
+            saveAllToStorage(false);
+        }
+
+        function redoStroke() {
+            const state = paneState[activePane];
+            const page = state.doc?.pages[state.pageIndex];
+            if (!page || state.redoStack.length === 0) return;
+            const restored = state.redoStack.pop();
+            page.strokes.push(restored);
+            renderVectorInk(activePane);
+            saveAllToStorage(false);
+        }
+
+        // ==================== LASSO ACTIONS ====================
+        function handleLassoAction(paneNum, toolType, pts) {
+            const xs = pts.map(p => p.x);
+            const ys = pts.map(p => p.y);
+            const minX = Math.max(0, Math.min(...xs) - 10);
+            const minY = Math.max(0, Math.min(...ys) - 10);
+            const maxX = Math.max(...xs) + 10;
+            const maxY = Math.max(...ys) + 10;
+
+            const page = paneState[paneNum].doc.pages[paneState[paneNum].pageIndex];
+            const insideTexts = (page.items || [])
+                .filter(it => it.type === 'text' && it.x >= minX - 20 && it.x <= maxX + 20 && it.y >= minY - 20 && it.y <= maxY + 20)
+                .map(it => it.text)
+                .join(' ');
+
+            if (toolType === 'lasso-read') {
+                openReadAloudModal(insideTexts);
+                if (insideTexts && 'speechSynthesis' in window) {
+                    window.speechSynthesis.cancel();
+                    const u = new SpeechSynthesisUtterance(insideTexts);
+                    u.lang = /[\u0E00-\u0E7F]/.test(insideTexts) ? 'th-TH' : 'en-US';
+                    window.speechSynthesis.speak(u);
+                }
+            } else if (toolType === 'lasso-ai') {
+                openAiStudyModal(insideTexts || 'อธิบายเนื้อหาส่วนที่วงไว้ให้เข้าใจง่าย');
+            } else if (toolType === 'snip-move') {
+                const srcCanvas = document.getElementById(`pdf-canvas-${paneNum}`);
+                const crop = document.createElement('canvas');
+                crop.width = Math.max(60, maxX - minX);
+                crop.height = Math.max(60, maxY - minY);
+                const cCtx = crop.getContext('2d');
+                cCtx.fillStyle = '#FFFFFF';
+                cCtx.fillRect(0, 0, crop.width, crop.height);
+                if (srcCanvas && srcCanvas.width > 0) {
+                    const scale = srcCanvas.width / (page.width || 595);
+                    cCtx.drawImage(srcCanvas, minX * scale, minY * scale, crop.width * scale, crop.height * scale, 0, 0, crop.width, crop.height);
+                }
+                addMediaItemToPage({ type: 'image', url: crop.toDataURL('image/png'), width: Math.min(240, crop.width) }, paneNum);
+                showToast('แคปส่วนที่เลือกวางเป็นการ์ดพร้อมย้ายแล้ว!');
+            }
+        }
+
+        // ==================== MEDIA, UNIVERSAL VIDEO, LINK, VOICE & READ ALOUD ====================
+        function extractYoutubeId(rawUrl) {
+            if (!rawUrl) return null;
+            const m = rawUrl.trim().match(/(?:youtube\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+            return m ? m[1] : null;
+        }
+
+        function parseUniversalVideoUrl(rawUrl) {
+            if (!rawUrl) return { mode: 'video', src: '' };
+            const url = rawUrl.trim();
+            if (url.startsWith('data:video/') || url.startsWith('blob:')) return { mode: 'video', src: url };
+            const ytId = extractYoutubeId(url);
+            if (ytId) {
+                return {
+                    mode: 'youtube',
+                    isYoutube: true,
+                    videoId: ytId,
+                    src: `https://www.youtube-nocookie.com/embed/${ytId}?autoplay=1&playsinline=1&rel=0`
+                };
+            }
+            const gdMatch = url.match(/drive\.google\.com\/file\/d\/([a-zA-Z0-9_-]+)/);
+            if (gdMatch) return { mode: 'iframe', src: `https://drive.google.com/file/d/${gdMatch[1]}/preview` };
+            const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+            if (vimeoMatch) return { mode: 'iframe', src: `https://player.vimeo.com/video/${vimeoMatch[1]}` };
+            if (/\.(mp4|webm|ogg|mov|m4v)(\?.*)?$/i.test(url)) return { mode: 'video', src: url };
+            return { mode: 'iframe', src: url };
+        }
+
+        function openInAppWebViewer(encodedUrl, encodedTitle) {
+            const url = decodeURIComponent(encodedUrl || '');
+            const title = decodeURIComponent(encodedTitle || 'หน้าต่างเว็บและวิดีโอ');
+            const parsed = parseUniversalVideoUrl(url);
+
+            showModal(
+                title,
+                `
+                <div class="space-y-2.5">
+                    <div class="flex items-center justify-between gap-2 bg-slate-100 px-3 py-1.5 rounded-xl text-[11px]">
+                        <span class="truncate text-slate-600">${url}</span>
+                        <a href="${url}" target="_blank" rel="noopener noreferrer" class="px-2.5 py-1 rounded-lg bg-rose-600 text-white font-bold shrink-0">เปิดเบราว์เซอร์เต็ม ↗</a>
+                    </div>
+                    <div class="w-full h-[52vh] bg-black rounded-2xl overflow-hidden border border-slate-200 relative">
+                        <iframe id="in-app-viewer-frame" src="${parsed.src}" class="w-full h-full border-0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+                    </div>
+                    ${parsed.isYoutube ? `
+                        <div class="flex items-center justify-between gap-2 text-[11px] text-slate-500">
+                            <span>หากคลิปขึ้น Error 153 ในกรอบตัวอย่าง:</span>
+                            <button type="button" onclick="document.getElementById('in-app-viewer-frame').src='https://inv.nadeko.net/embed/${parsed.videoId}'" class="px-2.5 py-1 rounded-lg bg-amber-100 text-amber-900 font-bold">สลับตัวเล่นสำรอง</button>
+                        </div>
+                    ` : ''}
+                </div>
+                `,
+                [{ text: 'ปิดหน้าต่าง', class: 'bg-gnPurple text-white', onClick: () => closeModal() }]
+            );
+        }
+
+        function openInsertLinkModal() {
+            showModal(
+                'แทรกลิงก์เนื้อหาลงหน้ากระดาษ 🔗',
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อหัวข้อลิงก์</label>
+                        <input type="text" id="link-title-input" placeholder="เช่น คลิปติวบทที่ 1, บทความสรุป..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">วางลิงก์ (URL)</label>
+                        <input type="url" id="link-url-input" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'วางลิงก์ลงหน้านี้',
+                        class: 'bg-blue-600 text-white',
+                        onClick: () => {
+                            let url = document.getElementById('link-url-input').value.trim();
+                            const title = document.getElementById('link-title-input').value.trim() || 'ลิงก์เนื้อหาอ้างอิง';
+                            if (!url) return showToast('กรุณาวางลิงก์ URL ก่อนครับ');
+                            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+                            addMediaItemToPage({ type: 'link', title, url, width: 260 });
+                            closeModal();
+                            showToast('วางลิงก์เรียบร้อย! แตะ "ดูในแอป" เพื่อเปิดอ่านได้ทันที');
+                        }
+                    }
+                ]
+            );
+        }
+
+        function openInsertVideoModal() {
+            showModal(
+                'แทรกวิดีโอลงหน้ากระดาษ 🎬',
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อวิดีโอ</label>
+                        <input type="text" id="video-title-input" placeholder="เช่น คลิปสอนบทที่ 1..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">วางลิงก์วิดีโอ (YouTube, Google Drive, MP4 ฯลฯ)</label>
+                        <input type="url" id="video-url-input" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div class="text-center text-xs text-slate-400 font-bold">— หรือเลือกไฟล์วิดีโอจากในเครื่อง (เล่นในหน้าทันที) —</div>
+                    <input type="file" id="video-file-input" accept="video/*" class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold">
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'วางวิดีโอลงหน้านี้',
+                        class: 'bg-rose-600 text-white',
+                        onClick: () => {
+                            const title = document.getElementById('video-title-input').value.trim() || 'วิดีโอประกอบการเรียน';
+                            const urlInput = document.getElementById('video-url-input').value.trim();
+                            const fileInput = document.getElementById('video-file-input');
+                            if (fileInput.files && fileInput.files[0]) {
+                                const reader = new FileReader();
+                                reader.onload = (e) => {
+                                    addMediaItemToPage({ type: 'video', title, url: e.target.result, width: 280 });
+                                    closeModal();
+                                    showToast('แทรกไฟล์วิดีโอลงหน้ากระดาษแล้ว!');
+                                };
+                                reader.readAsDataURL(fileInput.files[0]);
+                            } else if (urlInput) {
+                                const finalUrl = /^https?:\/\//i.test(urlInput) ? urlInput : 'https://' + urlInput;
+                                addMediaItemToPage({ type: 'video', title, url: finalUrl, width: 280 });
+                                closeModal();
+                                showToast('แทรกการ์ดวิดีโอลงหน้ากระดาษแล้ว! กดเล่นได้ทันที');
+                            } else {
+                                showToast('กรุณาวางลิงก์วิดีโอหรือเลือกไฟล์วิดีโอครับ');
+                            }
+                        }
+                    }
+                ]
+            );
+        }
+
+        // Voice Recorder & Export
+        let activeMediaRecorder = null;
+        let recordedAudioChunks = [];
+        let lastRecordedAudioDataUrl = '';
+
+        function openVoiceRecorderModal() {
+            lastRecordedAudioDataUrl = '';
+            showModal(
+                'อัดเสียงลงสมุดโน๊ต & ส่งต่อที่อื่น 🎙️',
+                `
+                <div class="space-y-3 text-center">
+                    <input type="text" id="audio-title-input" placeholder="ตั้งชื่อบันทึกเสียง (เช่น เลคเชอร์วิชาเคมี)..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    <div id="rec-status-box" class="py-3.5 px-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold">
+                        กดปุ่ม "เริ่มอัดเสียง" ด้านล่างเพื่อบันทึกเสียงบรรยาย
+                    </div>
+                    <div class="flex justify-center gap-2">
+                        <button type="button" id="btn-start-rec" onclick="startVoiceRecording()" class="px-4 py-2 rounded-xl bg-rose-600 text-white font-bold text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-circle"></i> เริ่มอัดเสียง
+                        </button>
+                        <button type="button" id="btn-stop-rec" onclick="stopVoiceRecording()" disabled class="px-4 py-2 rounded-xl bg-slate-300 text-slate-600 font-bold text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-stop"></i> หยุดอัด
+                        </button>
+                    </div>
+                    <div id="rec-preview-wrap" class="hidden space-y-2 pt-1">
+                        <audio id="rec-preview-audio" controls class="w-full h-9"></audio>
+                        <button type="button" onclick="shareRecordedVoiceNow()" class="w-full py-2 px-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs flex items-center justify-center gap-1.5">
+                            <i class="fa-solid fa-share-nodes"></i> ส่งต่อ / บันทึกไฟล์เสียงไปแอปอื่นทันที
+                        </button>
+                    </div>
+                </div>
+                `,
+                [
+                    {
+                        text: 'ยกเลิก',
+                        class: 'bg-slate-100 text-slate-700',
+                        onClick: () => {
+                            if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') activeMediaRecorder.stop();
+                            closeModal();
+                        }
+                    },
+                    {
+                        text: 'วางลงหน้าโน๊ตนี้',
+                        class: 'bg-emerald-600 text-white',
+                        onClick: () => {
+                            if (!lastRecordedAudioDataUrl) return showToast('กรุณาอัดเสียงให้เสร็จก่อนครับ');
+                            const title = document.getElementById('audio-title-input').value.trim() || 'บันทึกเสียง';
+                            addMediaItemToPage({ type: 'audio', title, url: lastRecordedAudioDataUrl, width: 270 });
+                            closeModal();
+                            showToast('บันทึกเสียงลงหน้านี้แล้ว!');
+                        }
+                    }
+                ]
+            );
+        }
+
+        async function startVoiceRecording() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                recordedAudioChunks = [];
+                activeMediaRecorder = new MediaRecorder(stream);
+                activeMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedAudioChunks.push(e.data); };
+                activeMediaRecorder.onstop = () => {
+                    const blob = new Blob(recordedAudioChunks, { type: 'audio/webm' });
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        lastRecordedAudioDataUrl = reader.result;
+                        const prevAudio = document.getElementById('rec-preview-audio');
+                        const prevWrap = document.getElementById('rec-preview-wrap');
+                        if (prevAudio && prevWrap) {
+                            prevAudio.src = lastRecordedAudioDataUrl;
+                            prevWrap.classList.remove('hidden');
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                    stream.getTracks().forEach(t => t.stop());
+                };
+                activeMediaRecorder.start();
+                document.getElementById('rec-status-box').textContent = '🔴 กำลังอัดเสียง... พูดได้เลยครับ';
+                document.getElementById('btn-start-rec').disabled = true;
+                document.getElementById('btn-stop-rec').disabled = false;
+                document.getElementById('btn-stop-rec').classList.replace('bg-slate-300', 'bg-slate-800');
+                document.getElementById('btn-stop-rec').classList.replace('text-slate-600', 'text-white');
+            } catch (err) {
+                showToast('กรุณาอนุญาตการใช้ไมโครโฟนก่อนอัดเสียงครับ');
+            }
+        }
+
+        function stopVoiceRecording() {
+            if (activeMediaRecorder && activeMediaRecorder.state !== 'inactive') {
+                activeMediaRecorder.stop();
+                document.getElementById('rec-status-box').textContent = '✅ อัดเสียงเสร็จแล้ว! กดฟังหรือส่งต่อได้เลย';
+                document.getElementById('btn-start-rec').disabled = false;
+                document.getElementById('btn-stop-rec').disabled = true;
+            }
+        }
+
+        function shareRecordedVoiceNow() {
+            if (!lastRecordedAudioDataUrl) return showToast('กรุณาอัดเสียงให้เสร็จก่อนครับ');
+            const title = document.getElementById('audio-title-input').value.trim() || 'บันทึกเสียง_EnjoyNote';
+            shareOrDownloadAudioData(lastRecordedAudioDataUrl, encodeURIComponent(title));
+        }
+
+        async function shareOrDownloadAudioData(audioDataUrl, encodedTitle) {
+            const title = decodeURIComponent(encodedTitle || 'บันทึกเสียง_EnjoyNote').replace(/[^a-zA-Z0-9ก-๙_-]/g, '_');
+            try {
+                const res = await fetch(audioDataUrl);
+                const blob = await res.blob();
+                const fileName = `${title}.webm`;
+                const file = new File([blob], fileName, { type: blob.type || 'audio/webm' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ title, text: `ไฟล์เสียงจาก Enjoy note`, files: [file] });
+                    return;
+                }
+                const dlUrl = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = dlUrl;
+                a.download = fileName;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(dlUrl), 3000);
+                showToast(`ดาวน์โหลดไฟล์เสียง "${fileName}" พร้อมส่งต่อแล้ว!`);
+            } catch (e) {
+                showToast('ไม่สามารถส่งออกไฟล์เสียงได้');
+            }
+        }
+
+        function openReadAloudModal(prefillText = '') {
+            const page = paneState[activePane].doc?.pages[paneState[activePane].pageIndex];
+            const pageTexts = (page?.items || []).filter(i => i.type === 'text').map(i => i.text).join('\n');
+            const defaultText = prefillText || pageTexts;
+
+            showModal(
+                'ระบบอ่านออกเสียง ภาษาไทย / อังกฤษ 🔊',
+                `
+                <div class="space-y-3">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <select id="tts-lang-select" class="px-3 py-1.5 rounded-xl border border-slate-200 text-xs font-bold outline-none">
+                            <option value="th-TH">🇹🇭 ภาษาไทย (Thai)</option>
+                            <option value="en-US">🇺🇸 ภาษาอังกฤษ (English)</option>
+                        </select>
+                        <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-purple-100 hover:bg-purple-200 text-gnPurple font-bold text-xs flex items-center gap-1.5">
+                            <i class="fa-solid fa-file-import"></i>
+                            <span>แนบไฟล์ให้อ่าน (PDF/TXT)</span>
+                            <input type="file" accept=".pdf,.txt,.md,.csv" class="hidden" onchange="handleReadAloudFileUpload(this)">
+                        </label>
+                    </div>
+                    <textarea id="tts-text-input" rows="5" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-gnPurple" placeholder="พิมพ์ วางข้อความ หรือแนบไฟล์ PDF/TXT ด้านบน แล้วกดปุ่มเริ่มอ่านออกเสียง...">${defaultText}</textarea>
+                </div>
+                `,
+                [
+                    {
+                        text: 'หยุดอ่าน',
+                        class: 'bg-slate-100 text-slate-700',
+                        onClick: () => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); }
+                    },
+                    {
+                        text: '🔊 เริ่มอ่านออกเสียง',
+                        class: 'bg-indigo-600 text-white',
+                        onClick: () => {
+                            const txt = document.getElementById('tts-text-input').value.trim();
+                            const lang = document.getElementById('tts-lang-select').value;
+                            if (!txt) return showToast('กรุณาใส่ข้อความก่อนกดอ่านออกเสียงครับ');
+                            if ('speechSynthesis' in window) {
+                                window.speechSynthesis.cancel();
+                                const utter = new SpeechSynthesisUtterance(txt);
+                                utter.lang = lang;
+                                utter.rate = 0.96;
+                                window.speechSynthesis.speak(utter);
+                                showToast('กำลังอ่านออกเสียงตามคำสั่ง...');
+                            }
+                        }
+                    },
+                    {
+                        text: 'ปิด',
+                        class: 'bg-gnPurple text-white',
+                        onClick: () => { if ('speechSynthesis' in window) window.speechSynthesis.cancel(); closeModal(); }
+                    }
+                ]
+            );
+        }
+
+        async function handleReadAloudFileUpload(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const textarea = document.getElementById('tts-text-input');
+            const langSel = document.getElementById('tts-lang-select');
+            try {
+                let text = '';
+                if (file.name.toLowerCase().endsWith('.pdf') && window.pdfjsLib) {
+                    const buf = await file.arrayBuffer();
+                    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+                    for (let i = 1; i <= Math.min(pdf.numPages, 10); i++) {
+                        const p = await pdf.getPage(i);
+                        const tc = await p.getTextContent();
+                        text += tc.items.map(it => it.str).join(' ') + '\n';
+                    }
+                } else {
+                    text = await file.text();
+                }
+                textarea.value = text.trim();
+                langSel.value = /[\u0E00-\u0E7F]/.test(textarea.value) ? 'th-TH' : 'en-US';
+                showToast(`ดึงข้อความจาก "${file.name}" เรียบร้อย! กดปุ่มเริ่มอ่านได้เลย`);
+            } catch (e) {
+                showToast('ไม่สามารถอ่านไฟล์นี้ได้ครับ');
+            }
+            input.value = '';
+        }
+
+        // ==================== OTHER WORKSPACE HELPERS ====================
+        function handleInsertImageToPage(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                addMediaItemToPage({ type: 'image', url: e.target.result, width: 220 });
+                showToast('แทรกรูปภาพลงหน้ากระดาษแล้ว!');
+            };
+            reader.readAsDataURL(file);
+            input.value = '';
+        }
+
+        function openStickerPicker() {
+            const emojis = ['⭐', '❤️', '📌', '✅', '💡', '🔥', '🐶', '🐱', '🌸', '🎀', '📚', '✏️', '🎯', '🏆', '👏', '✨'];
+            showModal(
+                'เลือกสติ๊กเกอร์น่ารัก 🐾',
+                `<div class="grid grid-cols-4 gap-3 text-center">
+                    ${emojis.map(em => `
+                        <button type="button" onclick="addMediaItemToPage({type:'sticker', emoji:'${em}'}); closeModal();" class="text-3xl p-2 rounded-2xl hover:bg-purple-50 transition">${em}</button>
+                    `).join('')}
+                </div>`,
+                [{ text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() }]
+            );
+        }
+
+        function openChangePaperTemplateModal() {
+            const page = paneState[activePane].doc?.pages[paneState[activePane].pageIndex];
+            if (!page || page.pdfPageNum) return showToast('หน้า PDF ไม่สามารถเปลี่ยนลายกระดาษพื้นหลังได้ครับ');
+            const templates = [
+                { id: 'lined', name: 'กระดาษมีเส้น' },
+                { id: 'grid', name: 'กระดาษกราฟตาราง' },
+                { id: 'cornell', name: 'กระดาษ Cornell' },
+                { id: 'dotted', name: 'กระดาษจุดไข่ปลา' },
+                { id: 'blank', name: 'กระดาษเปล่าสีขาว' }
+            ];
+            showModal(
+                'เปลี่ยนลายกระดาษหน้านี้ 📝',
+                `<div class="space-y-2">
+                    ${templates.map(t => `
+                        <button type="button" onclick="setPageTemplate('${t.id}')" class="w-full text-left px-4 py-2.5 rounded-xl border ${page.template === t.id ? 'border-gnPurple bg-purple-50 font-bold text-gnPurple' : 'border-slate-200 hover:bg-slate-50'} text-xs">
+                            ${t.name}
+                        </button>
+                    `).join('')}
+                </div>`,
+                [{ text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() }]
+            );
+        }
+
+        function setPageTemplate(tpl) {
+            const page = paneState[activePane].doc?.pages[paneState[activePane].pageIndex];
+            if (page) {
+                page.template = tpl;
+                saveAllToStorage(false);
+                renderPane(activePane);
+                closeModal();
+            }
+        }
+
+        function openAiStudyModal(prefillPrompt = '') {
+            showModal(
+                'AI ผู้ช่วยสรุปบทเรียน ✨',
+                `
+                <div class="space-y-3">
+                    <textarea id="ai-prompt-input" rows="3" class="w-full p-2.5 rounded-xl border border-slate-200 text-xs outline-none focus:border-gnPurple" placeholder="พิมพ์หัวข้อหรือวางเนื้อหาที่อยากให้ช่วยสรุป...">${prefillPrompt}</textarea>
+                    <div id="ai-response-box" class="p-3 rounded-xl bg-purple-50 border border-purple-200 text-xs text-slate-700 whitespace-pre-wrap min-h-[70px]">พิมพ์คำถามหรือเนื้อหาด้านบน แล้วกดปุ่ม "สรุป / อธิบาย" ได้เลยครับ</div>
+                </div>
+                `,
+                [
+                    { text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'วางคำตอบลงโน๊ต',
+                        class: 'bg-emerald-600 text-white',
+                        onClick: () => {
+                            const ans = document.getElementById('ai-response-box').innerText.trim();
+                            if (ans) {
+                                addMediaItemToPage({ type: 'text', text: ans, color: '#4A2545', fontSize: 14 });
+                                closeModal();
+                                showToast('วางสรุปลงหน้ากระดาษแล้ว!');
+                            }
+                        }
+                    },
+                    {
+                        text: '✨ สรุป / อธิบาย',
+                        class: 'bg-gnPurple text-white',
+                        onClick: async () => {
+                            const q = document.getElementById('ai-prompt-input').value.trim();
+                            const resBox = document.getElementById('ai-response-box');
+                            if (!q) return showToast('กรุณาพิมพ์เนื้อหาก่อนครับ');
+                            resBox.textContent = 'กำลังวิเคราะห์และสรุปเนื้อหา... ⏳';
+                            try {
+                                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=`;
+                                const resp = await fetch(apiUrl, {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: `ช่วยสรุปและอธิบายเนื้อหานี้เป็นภาษาไทยให้เข้าใจง่าย กระชับ เป็นข้อๆ:\n${q}` }] }] })
+                                });
+                                const data = await resp.json();
+                                const reply = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+                                resBox.textContent = reply || `สรุปประเด็นสำคัญจาก: "${q}"\n• จับใจความหลักและคำสำคัญ\n• ทบทวนความเชื่อมโยงของเนื้อหา`;
+                            } catch (e) {
+                                resBox.textContent = `สรุปประเด็นสำคัญจาก: "${q}"\n• จับใจความหลักของเนื้อหา\n• จดบันทึกคำสำคัญเพื่อทบทวน`;
+                            }
+                        }
+                    }
+                ]
+            );
+        }
+
+        // ==================== MODAL & TOAST UI ====================
+        function showModal(title, bodyHtml, buttons = []) {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = bodyHtml;
+            const footer = document.getElementById('modal-footer');
+            footer.innerHTML = '';
+            buttons.forEach(b => {
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.textContent = b.text;
+                btn.className = `px-4 py-2 rounded-xl font-bold text-xs transition ${b.class || 'bg-slate-200 text-slate-800'}`;
+                btn.onclick = b.onClick;
+                footer.appendChild(btn);
+            });
+            document.getElementById('app-modal').classList.remove('hidden');
+        }
+
+        function closeModal() {
+            document.getElementById('app-modal').classList.add('hidden');
+        }
+
+        let toastTimer = null;
+        function showToast(msg) {
+            const box = document.getElementById('toast-box');
+            document.getElementById('toast-msg').textContent = msg;
+            box.classList.remove('opacity-0');
+            clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => box.classList.add('opacity-0'), 2400);
+        }
+
+        // ==================== BOOTSTRAP ====================
+        window.addEventListener('DOMContentLoaded', () => {
+            loadFromStorage();
+            applyCustomAppLogo();
+            attachCanvasEvents(1);
+            attachCanvasEvents(2);
+            if (appData.user) {
+                enterLibraryScreen();
+            }
+        });
+    </script>
+</body>
+</html>
