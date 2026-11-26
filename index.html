@@ -2354,15 +2354,6 @@
             );
         }
 
-        function openInsertLinkModal() {
-            showModal(
-                'แทรกลิงก์เนื้อหาลงหน้ากระดาษ 🔗',
-                `
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อหัวข้อลิงก์</label>
-                        <input type="text" id="link-title-input" placeholder="เช่น คลิปติวบทที่ 1, บทความสรุป..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
-                    </div>
         function saveAllToStorage(showNotify = false, skipCloud = false) {
             try {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
@@ -2436,6 +2427,85 @@
             );
         }
 
+        function openInsertLinkModal() {
+            showModal(
+                'แทรกลิงก์เนื้อหาลงหน้ากระดาษ 🔗',
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อหัวข้อลิงก์</label>
+                        <input type="text" id="link-title-input" placeholder="เช่น คลิปติวบทที่ 1, บทความสรุป..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">วาง URL เว็บไซต์หรือ YouTube</label>
+                        <input type="url" id="link-url-input" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'แทรกลิงก์เลย',
+                        class: 'bg-blue-600 text-white',
+                        onClick: () => {
+                            const title = document.getElementById('link-title-input').value.trim() || 'ลิงก์อ้างอิง';
+                            let url = document.getElementById('link-url-input').value.trim();
+                            if (!url) return showToast('กรุณาวางลิงก์ URL ก่อนครับ');
+                            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+                            addMediaItemToPage({ type: 'link', title, url, width: 260 });
+                            closeModal();
+                            showToast('แทรกลิงก์ลงหน้ากระดาษแล้ว!');
+                        }
+                    }
+                ]
+            );
+        }
+
+        function openInsertVideoModal() {
+            showModal(
+                'แทรกวิดีโอลงหน้ากระดาษ 🎬',
+                `
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อวิดีโอ</label>
+                        <input type="text" id="video-title-input" placeholder="เช่น วิดีโอติวสรุป..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1">วางลิงก์ YouTube / Google Drive / MP4</label>
+                        <input type="url" id="video-url-input" placeholder="https://youtu.be/..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                    </div>
+                    <div class="pt-1">
+                        <label class="block text-xs font-bold text-slate-600 mb-1">หรือเลือกไฟล์วิดีโอจากเครื่อง</label>
+                        <input type="file" id="video-file-input" accept="video/*" class="w-full text-xs text-slate-500">
+                    </div>
+                </div>
+                `,
+                [
+                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    {
+                        text: 'วางวิดีโอลงหน้านี้',
+                        class: 'bg-rose-600 text-white',
+                        onClick: () => {
+                            const title = document.getElementById('video-title-input').value.trim() || 'วิดีโอประกอบการเรียน';
+                            const url = document.getElementById('video-url-input').value.trim();
+                            const fileInput = document.getElementById('video-file-input');
+                            if (fileInput && fileInput.files && fileInput.files[0]) {
+                                const blobUrl = URL.createObjectURL(fileInput.files[0]);
+                                addMediaItemToPage({ type: 'video', title, url: blobUrl, width: 280 });
+                                closeModal();
+                                showToast('แทรกวิดีโอจากเครื่องแล้ว!');
+                                return;
+                            }
+                            if (!url) return showToast('กรุณาวางลิงก์วิดีโอหรือเลือกไฟล์ก่อนครับ');
+                            addMediaItemToPage({ type: 'video', title, url, width: 280 });
+                            closeModal();
+                            showToast('แทรกวิดีโอลงหน้ากระดาษแล้ว!');
+                        }
+                    }
+                ]
+            );
+        }
+
         // Voice Recorder & Export
         let activeMediaRecorder = null;
         let recordedAudioChunks = [];
@@ -2498,6 +2568,7 @@
                 activeMediaRecorder = new MediaRecorder(stream);
                 activeMediaRecorder.ondataavailable = (e) => { if (e.data.size > 0) recordedAudioChunks.push(e.data); };
                 activeMediaRecorder.onstop = () => {
+                    stream.getTracks().forEach(t => t.stop());
                     const blob = new Blob(recordedAudioChunks, { type: 'audio/webm' });
                     const reader = new FileReader();
                     reader.onload = () => {
@@ -2505,21 +2576,19 @@
                         const prevAudio = document.getElementById('rec-preview-audio');
                         const prevWrap = document.getElementById('rec-preview-wrap');
                         if (prevAudio && prevWrap) {
-        function handleLogin(isGuest) {
-            const emailInput = document.getElementById('login-email').value.trim();
-            const nameInput = document.getElementById('login-name').value.trim();
-            if (!isGuest && !emailInput) {
-                showToast('กรุณากรอกอีเมล Gmail หรือกด "เข้าใช้งานทันที" ครับ');
-                return;
-            }
-            appData.user = {
-                email: isGuest ? 'offline@enjoynote.app' : emailInput,
-                name: nameInput || (emailInput ? emailInput.split('@')[0] : 'นักเรียนคนเก่ง')
-            };
-            saveAllToStorage(false, true);
-            enterLibraryScreen();
-            if (!isGuest && window.CloudSyncEngine) {
-                window.CloudSyncEngine.startAccountSync(appData.user.email);
+                            prevAudio.src = lastRecordedAudioDataUrl;
+                            prevWrap.classList.remove('hidden');
+                        }
+                    };
+                    reader.readAsDataURL(blob);
+                };
+                activeMediaRecorder.start();
+                document.getElementById('rec-status-box').textContent = '🔴 กำลังอัดเสียง... พูดได้เลยครับ';
+                document.getElementById('btn-start-rec').disabled = true;
+                document.getElementById('btn-stop-rec').disabled = false;
+                document.getElementById('btn-stop-rec').className = 'px-4 py-2 rounded-xl bg-slate-800 text-white font-bold text-xs flex items-center gap-1.5';
+            } catch (e) {
+                showToast('ไม่สามารถเปิดไมโครโฟนได้ กรุณาอนุญาตสิทธิ์ไมโครโฟน');
             }
         }
 
@@ -2533,33 +2602,31 @@
         }
 
         function shareRecordedVoiceNow() {
-            if (!lastRecordedAudioDataUrl) return showToast('กรุณาอัดเสียงให้เสร็จก่อนครับ');
-            const title = document.getElementById('audio-title-input').value.trim() || 'บันทึกเสียง_EnjoyNote';
+            if (!lastRecordedAudioDataUrl) return showToast('ยังไม่มีเสียงที่อัดครับ');
+            const title = (document.getElementById('audio-title-input')?.value || 'EnjoyNote_Voice').trim();
             shareOrDownloadAudioData(lastRecordedAudioDataUrl, encodeURIComponent(title));
         }
 
-        async function shareOrDownloadAudioData(audioDataUrl, encodedTitle) {
-            const title = decodeURIComponent(encodedTitle || 'บันทึกเสียง_EnjoyNote').replace(/[^a-zA-Z0-9ก-๙_-]/g, '_');
+        async function shareOrDownloadAudioData(dataUrl, encodedTitle) {
+            const title = decodeURIComponent(encodedTitle || 'EnjoyNote_Voice');
+            const safeName = title.replace(/[^a-zA-Z0-9ก-๙_-]/g, '_') + '.webm';
             try {
-                const res = await fetch(audioDataUrl);
+                const res = await fetch(dataUrl);
                 const blob = await res.blob();
-                const fileName = `${title}.webm`;
-                const file = new File([blob], fileName, { type: blob.type || 'audio/webm' });
-
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ title, text: `ไฟล์เสียงจาก Enjoy note`, files: [file] });
+                const file = new File([blob], safeName, { type: blob.type || 'audio/webm' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ title, files: [file] });
                     return;
                 }
-                const dlUrl = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = dlUrl;
-                a.download = fileName;
-                a.click();
-                setTimeout(() => URL.revokeObjectURL(dlUrl), 3000);
-                showToast(`ดาวน์โหลดไฟล์เสียง "${fileName}" พร้อมส่งต่อแล้ว!`);
-            } catch (e) {
-                showToast('ไม่สามารถส่งออกไฟล์เสียงได้');
-            }
+            } catch (e) {}
+
+            const a = document.createElement('a');
+            a.href = dataUrl;
+            a.download = safeName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            showToast('ดาวน์โหลดไฟล์เสียงลงเครื่องแล้ว!');
         }
 
         function openReadAloudModal(prefillText = '') {
@@ -2663,7 +2730,7 @@
                 'เลือกสติ๊กเกอร์น่ารัก 🐾',
                 `<div class="grid grid-cols-4 gap-3 text-center">
                     ${emojis.map(em => `
-                        <button type="button" onclick="addMediaItemToPage({type:'sticker', emoji:'${em}'}); closeModal();" class="text-3xl p-2 rounded-2xl hover:bg-purple-50 transition">${em}</button>
+                        <button type="button" onclick="addMediaItemToPage({type:'sticker', emoji:'${em}'}); closeModal();" class="text-3xl p-2.5 rounded-2xl bg-slate-50 hover:bg-purple-100 transition">${em}</button>
                     `).join('')}
                 </div>`,
                 [{ text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() }]
@@ -2672,7 +2739,7 @@
 
         function openChangePaperTemplateModal() {
             const page = paneState[activePane].doc?.pages[paneState[activePane].pageIndex];
-            if (!page || page.pdfPageNum) return showToast('หน้า PDF ไม่สามารถเปลี่ยนลายกระดาษพื้นหลังได้ครับ');
+            if (!page) return;
             const templates = [
                 { id: 'lined', name: 'กระดาษมีเส้น' },
                 { id: 'grid', name: 'กระดาษกราฟตาราง' },
@@ -2684,8 +2751,9 @@
                 'เปลี่ยนลายกระดาษหน้านี้ 📝',
                 `<div class="space-y-2">
                     ${templates.map(t => `
-                        <button type="button" onclick="setPageTemplate('${t.id}')" class="w-full text-left px-4 py-2.5 rounded-xl border ${page.template === t.id ? 'border-gnPurple bg-purple-50 font-bold text-gnPurple' : 'border-slate-200 hover:bg-slate-50'} text-xs">
-                            ${t.name}
+                        <button type="button" onclick="changeCurrentPageTemplate('${t.id}')" class="w-full text-left px-4 py-3 rounded-xl border ${page.template === t.id ? 'border-gnPurple bg-purple-50 font-bold text-gnPurple' : 'border-slate-200 hover:bg-slate-50'} text-xs flex items-center justify-between">
+                            <span>${t.name}</span>
+                            ${page.template === t.id ? '<i class="fa-solid fa-check"></i>' : ''}
                         </button>
                     `).join('')}
                 </div>`,
@@ -2693,14 +2761,14 @@
             );
         }
 
-        function setPageTemplate(tpl) {
+        async function changeCurrentPageTemplate(tplId) {
             const page = paneState[activePane].doc?.pages[paneState[activePane].pageIndex];
-            if (page) {
-                page.template = tpl;
-                saveAllToStorage(false);
-                renderPane(activePane);
-                closeModal();
-            }
+            if (!page) return;
+            page.template = tplId;
+            saveAllToStorage(false);
+            closeModal();
+            await renderPane(activePane);
+            showToast('เปลี่ยนลายกระดาษเรียบร้อยแล้ว');
         }
 
         function openAiStudyModal(prefillPrompt = '') {
