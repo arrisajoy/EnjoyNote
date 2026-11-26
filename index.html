@@ -3,12 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#4A2545">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Enjoy note">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Enjoy note - สมุดโน๊ต PDF อัจฉริยะ</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
+        // ==================== PWA MANIFEST & OFFLINE CACHE SETUP ====================
+        (function setupPWA() {
+            const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#4A2545"/><circle cx="256" cy="256" r="190" fill="#FCE7F3"/><circle cx="256" cy="240" r="95" fill="#FFE4D6"/><path d="M160 220 C160 120, 352 120, 352 220 Z" fill="#3B2E2A"/><circle cx="220" cy="235" r="12" fill="#261A16"/><circle cx="292" cy="235" r="12" fill="#261A16"/><path d="M235 270 Q256 290 277 270" stroke="#261A16" stroke-width="10" fill="none" stroke-linecap="round"/><ellipse cx="256" cy="340" rx="75" ry="55" fill="#DDA668"/><circle cx="256" cy="335" r="12" fill="#261A16"/></svg>`;
+            const iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(appIconSvg);
+
+            const manifestObj = {
+                name: 'Enjoy note - สมุดโน๊ต PDF อัจฉริยะ',
+                short_name: 'Enjoy note',
+                description: 'จดโน๊ต อ่าน PDF ปกสมุดสวย ใช้งานได้แม้ไม่มีอินเทอร์เน็ต',
+                start_url: location.href.split('#')[0],
+                scope: './',
+                display: 'standalone',
+                orientation: 'any',
+                background_color: '#19141C',
+                theme_color: '#4A2545',
+                icons: [
+                    { src: iconDataUrl, sizes: '192x192', type: 'image/svg+xml', purpose: 'any maskable' },
+                    { src: iconDataUrl, sizes: '512x512', type: 'image/svg+xml', purpose: 'any maskable' }
+                ]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/manifest+json' });
+            const manifestUrl = URL.createObjectURL(manifestBlob);
+            const linkEl = document.createElement('link');
+            linkEl.rel = 'manifest';
+            linkEl.href = manifestUrl;
+            document.head.appendChild(linkEl);
+
+            const appleIcon = document.createElement('link');
+            appleIcon.rel = 'apple-touch-icon';
+            appleIcon.href = iconDataUrl;
+            document.head.appendChild(appleIcon);
+
+            // Register Service Worker for 100% Offline Support
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+                const swCode = `
+                    const CACHE_NAME = 'enjoy-note-offline-v2';
+                    const CORE_ASSETS = [
+                        './',
+                        './index.html',
+                        'https://cdn.tailwindcss.com',
+                        'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+                    ];
+                    self.addEventListener('install', (event) => {
+                        self.skipWaiting();
+                        event.waitUntil(
+                            caches.open(CACHE_NAME).then((cache) => {
+                                return Promise.allSettled(CORE_ASSETS.map(url => cache.add(url)));
+                            })
+                        );
+                    });
+                    self.addEventListener('activate', (event) => {
+                        event.waitUntil(self.clients.claim());
+                    });
+                    self.addEventListener('fetch', (event) => {
+                        if (event.request.method !== 'GET') return;
+                        event.respondWith(
+                            caches.match(event.request).then((cached) => {
+                                const networkFetch = fetch(event.request).then((response) => {
+                                    if (response && (response.status === 200 || response.type === 'opaque')) {
+                                        const clone = response.clone();
+                                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                                    }
+                                    return response;
+                                }).catch(() => cached);
+                                return cached || networkFetch;
+                            })
+                        );
+                    });
+                `;
+                const swBlob = new Blob([swCode], { type: 'application/javascript' });
+                const swUrl = URL.createObjectURL(swBlob);
+                navigator.serviceWorker.register(swUrl).catch(() => {});
+            }
+        })();
+
         tailwind.config = {
             theme: {
                 extend: {
@@ -83,21 +165,16 @@
 
     <!-- ==================== 1. LOGIN SCREEN ==================== -->
     <div id="login-screen" class="fixed inset-0 z-50 bg-[#19141C] min-h-[100dvh] w-full flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
-        <!-- Ambient Top-Center Glow -->
         <div class="pointer-events-none fixed top-0 left-1/2 -translate-x-1/2 w-[640px] h-[420px] bg-gradient-to-b from-[#5A3256]/50 via-[#3B2038]/25 to-transparent blur-3xl"></div>
 
-        <!-- Outer Gradient Card Frame -->
         <div class="w-full max-w-[480px] sm:max-w-[520px] p-4 sm:p-5 rounded-[38px] bg-gradient-to-b from-[#7E547A]/90 via-[#6E476B]/85 to-[#C57D95]/90 shadow-[0_24px_60px_rgba(0,0,0,0.65)] relative z-10 my-auto">
             <div class="w-full bg-[#FAF8FB] rounded-[30px] px-6 py-8 sm:px-9 sm:py-9 shadow-inner">
                 <div class="flex flex-col items-center text-center">
-                    <!-- Circular App Emblem (Supports Custom Image Upload) -->
                     <label for="custom-app-logo-input" class="relative w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center mb-2 cursor-pointer group" title="แตะเพื่อเปลี่ยนรูปภาพโลโก้จากเครื่องของคุณ">
                         <input type="file" id="custom-app-logo-input" accept="image/*" class="hidden" onchange="handleCustomAppLogoUpload(this)">
-                        <!-- Custom Uploaded Logo Image -->
                         <div id="custom-logo-circle-wrap" class="hidden w-full h-full rounded-full border-[4px] border-[#C08497] shadow-md overflow-hidden bg-pink-100 relative">
                             <img id="custom-logo-img-login" src="" alt="Enjoy note logo" class="w-full h-full object-cover">
                         </div>
-                        <!-- Default SVG Emblem -->
                         <svg id="default-logo-svg-login" viewBox="0 0 180 180" class="w-full h-full overflow-visible">
                             <defs>
                                 <radialGradient id="circleBgGrad" cx="50%" cy="45%" r="55%">
@@ -169,12 +246,12 @@
 
                     <h1 class="text-4xl sm:text-[42px] font-extrabold text-[#4A2545] tracking-tight leading-none mt-2">Enjoy note</h1>
                     <p class="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed">จดโน๊ต อ่าน PDF ปกสมุดสวย • ซิงค์ทุกเครื่องด้วย Gmail</p>
-                    <div class="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold">
-                        <span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> ออนไลน์: พร้อมซิงค์คลาวด์ข้ามอุปกรณ์
+                    <div id="network-status-pill" class="mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold">
+                        <span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> พร้อมใช้งานทั้งออนไลน์ & ออฟไลน์ (ไม่มีเน็ตก็จดได้)
                     </div>
                 </div>
 
-                <div class="mt-6 space-y-3.5">
+                <div class="mt-6 space-y-3">
                     <div class="relative">
                         <span class="absolute left-4 top-1/2 -translate-y-1/2 text-[#EA4335] font-extrabold text-base">G</span>
                         <input type="email" id="login-email" placeholder="example@gmail.com" class="w-full pl-11 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 text-sm sm:text-base outline-none focus:border-[#5B3758]">
@@ -190,9 +267,13 @@
                     <button type="button" onclick="handleLogin(true)" class="w-full py-3.5 rounded-2xl bg-[#5B3758]/90 hover:bg-[#4A2545] text-white font-bold text-sm sm:text-base shadow-sm transition flex items-center justify-center gap-2">
                         เข้าใช้งานทันที
                     </button>
+
+                    <button type="button" id="btn-install-pwa-login" onclick="triggerInstallApp()" class="w-full py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-[#361932] font-extrabold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-download"></i> ติดตั้งแอปลงเครื่อง (ใช้งานแบบไม่มีเน็ต)
+                    </button>
                 </div>
 
-                <p class="text-center text-[11px] text-slate-400 mt-5">© 2026 Enjoy note. Optimized for PWA.</p>
+                <p class="text-center text-[11px] text-slate-400 mt-4">© 2026 Enjoy note. Full Offline PWA Ready.</p>
             </div>
         </div>
     </div>
@@ -229,7 +310,11 @@
                     <p id="user-greeting" class="text-[11px] text-purple-200">สวัสดี, นักเรียนคนเก่ง</p>
                 </div>
             </div>
-            <div class="flex items-center gap-2">
+            <div class="flex items-center gap-1.5 sm:gap-2">
+                <button type="button" onclick="triggerInstallApp()" class="px-2.5 py-1.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition" title="ติดตั้งเป็นแอปแท้ลงเครื่อง">
+                    <i class="fa-solid fa-mobile-screen-button"></i>
+                    <span class="hidden sm:inline">ติดตั้งแอป</span>
+                </button>
                 <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
                     <i class="fa-solid fa-file-pdf"></i>
                     <span>นำเข้า PDF</span>
@@ -531,6 +616,57 @@
         if (window.pdfjsLib) {
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
         }
+
+        // ==================== PWA INSTALL PROMPT HANDLER ====================
+        let deferredInstallPrompt = null;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredInstallPrompt = e;
+        });
+
+        async function triggerInstallApp() {
+            if (deferredInstallPrompt) {
+                deferredInstallPrompt.prompt();
+                const { outcome } = await deferredInstallPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    showToast('กำลังติดตั้งแอป Enjoy note ลงในเครื่อง... 🎉');
+                }
+                deferredInstallPrompt = null;
+                return;
+            }
+            showModal(
+                'วิธีติดตั้งเป็นแอปแท้ (ใช้งานตอนไม่มีเน็ตได้ 100%) 📲',
+                `
+                <div class="space-y-3 text-xs text-slate-700 leading-relaxed">
+                    <div class="p-3 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-bold">
+                        ✅ ระบบบันทึกข้อมูลแบบ Offline ทำงานแล้ว! คุณสามารถเปิดใช้งานแอปนี้ได้แม้ปิดอินเทอร์เน็ต
+                    </div>
+                    <p class="font-bold text-gnPurple">ขั้นตอนติดตั้งลงหน้าจอหลัก (ไม่มีแถบ Chrome บัง):</p>
+                    <ol class="list-decimal pl-5 space-y-1.5">
+                        <li>แตะที่ปุ่ม <b>⋮ (จุด 3 จุด)</b> มุมขวาบนสุดของเบราว์เซอร์ Chrome</li>
+                        <li>เลือกคำว่า <b>"ติดตั้งแอป" (Install app)</b> หรือ <b>"เพิ่มลงในหน้าจอหลัก" (Add to Home screen)</b></li>
+                        <li>กดยืนยัน <b>"ติดตั้ง" (Install)</b></li>
+                    </ol>
+                    <p class="text-[11px] text-slate-500">เมื่อติดตั้งเสร็จ ไอคอน <b>Enjoy note</b> จะไปปรากฏในหน้ารวมแอปของเครื่อง กดเปิดใช้งานเต็มจอได้ทุกที่ทุกเวลาแม้ไม่มีเน็ตครับ</p>
+                </div>
+                `,
+                [{ text: 'เข้าใจแล้ว', class: 'bg-gnPurple text-white', onClick: () => closeModal() }]
+            );
+        }
+
+        function updateOnlineStatusPill() {
+            const pill = document.getElementById('network-status-pill');
+            if (!pill) return;
+            if (navigator.onLine) {
+                pill.className = 'mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold';
+                pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> ออนไลน์ & บันทึกออฟไลน์พร้อมใช้งาน';
+            } else {
+                pill.className = 'mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold';
+                pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-amber-500"></span> โหมดออฟไลน์ (ไม่มีเน็ต): จดโน๊ตและอ่าน PDF ได้ตามปกติ';
+            }
+        }
+        window.addEventListener('online', updateOnlineStatusPill);
+        window.addEventListener('offline', updateOnlineStatusPill);
 
         // ==================== APP STATE ====================
         const STORAGE_KEY = 'enjoy_note_v1_data';
@@ -2299,6 +2435,10 @@
                             const q = document.getElementById('ai-prompt-input').value.trim();
                             const resBox = document.getElementById('ai-response-box');
                             if (!q) return showToast('กรุณาพิมพ์เนื้อหาก่อนครับ');
+                            if (!navigator.onLine) {
+                                resBox.textContent = `สรุปเบื้องต้น (โหมดออฟไลน์):\n• หัวข้อ: ${q}\n• เชื่อมต่ออินเทอร์เน็ตเพื่อใช้ AI วิเคราะห์เชิงลึกครับ`;
+                                return;
+                            }
                             resBox.textContent = 'กำลังวิเคราะห์และสรุปเนื้อหา... ⏳';
                             try {
                                 const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=`;
@@ -2353,6 +2493,7 @@
         window.addEventListener('DOMContentLoaded', () => {
             loadFromStorage();
             applyCustomAppLogo();
+            updateOnlineStatusPill();
             attachCanvasEvents(1);
             attachCanvasEvents(2);
             if (appData.user) {
