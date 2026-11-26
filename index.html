@@ -14,7 +14,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Anuphan:wght@300;400;500;600;700&family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script>
-        // ==================== PWA MANIFEST & OFFLINE CACHE SETUP ====================
+        // ==================== PWA MANIFEST & OFFLINE CACHE SETUP (v4) ====================
         (function setupPWA() {
             const appIconSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><rect width="512" height="512" rx="115" fill="#4A2545"/><circle cx="256" cy="256" r="190" fill="#FCE7F3"/><circle cx="256" cy="240" r="95" fill="#FFE4D6"/><path d="M160 220 C160 120, 352 120, 352 220 Z" fill="#3B2E2A"/><circle cx="220" cy="235" r="12" fill="#261A16"/><circle cx="292" cy="235" r="12" fill="#261A16"/><path d="M235 270 Q256 290 277 270" stroke="#261A16" stroke-width="10" fill="none" stroke-linecap="round"/><ellipse cx="256" cy="340" rx="75" ry="55" fill="#DDA668"/><circle cx="256" cy="335" r="12" fill="#261A16"/></svg>`;
             const iconDataUrl = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(appIconSvg);
@@ -46,17 +46,15 @@
             appleIcon.href = iconDataUrl;
             document.head.appendChild(appleIcon);
 
-            // Register Service Worker for 100% Offline Support
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
                 const swCode = `
-                    const CACHE_NAME = 'enjoy-note-offline-v3';
+                    const CACHE_NAME = 'enjoy-note-offline-v4';
                     const CORE_ASSETS = [
                         './',
                         './index.html',
                         'https://cdn.tailwindcss.com',
                         'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css',
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
-                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'
+                        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js'
                     ];
                     self.addEventListener('install', (event) => {
                         self.skipWaiting();
@@ -67,21 +65,22 @@
                         );
                     });
                     self.addEventListener('activate', (event) => {
-                        event.waitUntil(self.clients.claim());
+                        event.waitUntil(
+                            caches.keys().then((keys) => Promise.all(
+                                keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))
+                            )).then(() => self.clients.claim())
+                        );
                     });
                     self.addEventListener('fetch', (event) => {
                         if (event.request.method !== 'GET') return;
                         event.respondWith(
-                            caches.match(event.request).then((cached) => {
-                                const networkFetch = fetch(event.request).then((response) => {
-                                    if (response && (response.status === 200 || response.type === 'opaque')) {
-                                        const clone = response.clone();
-                                        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
-                                    }
-                                    return response;
-                                }).catch(() => cached);
-                                return cached || networkFetch;
-                            })
+                            fetch(event.request).then((response) => {
+                                if (response && (response.status === 200 || response.type === 'opaque')) {
+                                    const clone = response.clone();
+                                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+                                }
+                                return response;
+                            }).catch(() => caches.match(event.request))
                         );
                     });
                 `;
@@ -115,7 +114,7 @@
         }
         body {
             font-family: 'Anuphan', 'Sarabun', 'sans-serif';
-            background-color: #F6F3F7;
+            background-color: #19141C;
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -318,7 +317,7 @@
                 <label class="cursor-pointer px-3 py-1.5 rounded-xl bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition">
                     <i class="fa-solid fa-file-pdf"></i>
                     <span>นำเข้า PDF</span>
-                    <input type="file" id="import-pdf-input" accept=".pdf,application/pdf" class="hidden" onchange="handleImportPdfFile(this)">
+                    <input type="file" id="import-pdf-input" accept="application/pdf,.pdf" class="hidden" onchange="handleImportPdfFile(this)">
                 </label>
                 <button type="button" onclick="openNewNotebookModal()" class="px-3 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-gnPurpleDark text-xs font-extrabold flex items-center gap-1.5 shadow-xs transition">
                     <i class="fa-solid fa-plus"></i>
@@ -469,7 +468,7 @@
             <label class="cursor-pointer px-2.5 py-1.5 rounded-xl bg-rose-100 text-rose-800 font-bold text-xs flex items-center gap-1 shrink-0" title="แทรกไฟล์ PDF ต่อจากหน้าปัจจุบัน">
                 <i class="fa-solid fa-file-pdf"></i>
                 <span>แทรก PDF</span>
-                <input type="file" accept=".pdf,application/pdf" class="hidden" onchange="handleInsertPdfPagesIntoCurrentDoc(this)">
+                <input type="file" accept="application/pdf,.pdf" class="hidden" onchange="handleInsertPdfPagesIntoCurrentDoc(this)">
             </label>
 
             <button type="button" onclick="openStickerPicker()" class="px-2.5 py-1.5 rounded-xl bg-pink-100 text-pink-800 font-bold text-xs flex items-center gap-1 shrink-0">
@@ -616,7 +615,7 @@
         // ==================== INDEXEDDB FOR LARGE PDF & OFFLINE STORAGE ====================
         const PDF_DB_NAME = 'EnjoyNote_PDF_Store_v1';
         const PDF_STORE_NAME = 'pdf_blobs';
-        const memoryPdfBlobs = {}; // Instant fallback in-memory cache
+        const memoryPdfBlobs = {};
 
         function openPdfIndexedDB() {
             return new Promise((resolve, reject) => {
@@ -677,11 +676,20 @@
             } catch (e) {}
         }
 
+        function countPdfPagesFallback(arrayBuffer) {
+            try {
+                const text = new TextDecoder('latin1').decode(new Uint8Array(arrayBuffer));
+                const matches = text.match(/\/Type\s*\/Page\b(?!s)/g);
+                return matches && matches.length > 0 ? matches.length : 1;
+            } catch (e) {
+                return 1;
+            }
+        }
+
         function loadPdfJsDocument(arrayBuffer) {
             if (!window.pdfjsLib) {
-                throw new Error('ระบบอ่าน PDF ยังโหลดไม่เสร็จ กรุณารอสักครู่แล้วลองใหม่');
+                return Promise.reject(new Error('PDFJS_NOT_LOADED'));
             }
-            // Clone buffer because PDF.js transfers/detaches ArrayBuffer
             const clonedBytes = new Uint8Array(arrayBuffer.slice(0));
             return pdfjsLib.getDocument({
                 data: clonedBytes,
@@ -1044,16 +1052,9 @@
             );
         }
 
-        // ==================== OFFLINE & ONLINE PDF IMPORT (INDEXEDDB + NO EXTERNAL WORKER) ====================
-        async function handleImportPdfFile(input) {
-            const file = input.files && input.files[0];
-            if (!file) return;
-            showToast('กำลังอ่านไฟล์ PDF (รองรับทั้งออนไลน์และออฟไลน์)... ⏳');
+        // ==================== OFFLINE & ONLINE PDF IMPORT (WITH FALLBACK) ====================
+        async function buildPagesFromPdfBuffer(arrayBuffer, pdfKey, fileName) {
             try {
-                const arrayBuffer = await file.arrayBuffer();
-                const pdfKey = 'pdf_blob_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
-                await savePdfBytesToDB(pdfKey, arrayBuffer);
-
                 const pdfDoc = await loadPdfJsDocument(arrayBuffer);
                 const pages = [];
                 for (let i = 1; i <= pdfDoc.numPages; i++) {
@@ -1070,7 +1071,37 @@
                         items: []
                     });
                 }
+                return pages;
+            } catch (err) {
+                // Fallback if offline before PDF.js cached or protected PDF
+                const total = countPdfPagesFallback(arrayBuffer);
+                const pages = [];
+                for (let i = 1; i <= total; i++) {
+                    pages.push({
+                        id: 'pdf_fb_' + Date.now() + '_' + i,
+                        template: 'blank',
+                        width: 595,
+                        height: 842,
+                        pdfPageNum: i,
+                        pdfStorageKey: pdfKey,
+                        strokes: [],
+                        items: []
+                    });
+                }
+                return pages;
+            }
+        }
 
+        async function handleImportPdfFile(input) {
+            const file = input.files && input.files[0];
+            if (!file) return;
+            showToast('กำลังนำเข้าไฟล์ PDF... ⏳');
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfKey = 'pdf_blob_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+                await savePdfBytesToDB(pdfKey, arrayBuffer);
+
+                const pages = await buildPagesFromPdfBuffer(arrayBuffer, pdfKey, file.name);
                 const newPdfDoc = {
                     id: 'pdf_' + Date.now(),
                     title: file.name.replace(/\.pdf$/i, ''),
@@ -1086,10 +1117,10 @@
                 saveAllToStorage(false);
                 renderLibrary();
                 await openDocumentInWorkspace(newPdfDoc.id);
-                showToast(`นำเข้า PDF สำเร็จ (${pdfDoc.numPages} หน้า)! ✅`);
+                showToast(`นำเข้า PDF สำเร็จ (${pages.length} หน้า)! ✅`);
             } catch (err) {
                 console.error('PDF import error:', err);
-                showToast('เปิดไฟล์ PDF ไม่สำเร็จ: ' + (err?.message || 'ไฟล์อาจติดรหัสผ่านหรือเสียหาย'));
+                showToast('เกิดข้อผิดพลาดในการอ่านไฟล์ PDF: ' + (err?.message || 'ลองเลือกไฟล์ใหม่อีกครั้ง'));
             } finally {
                 input.value = '';
             }
@@ -1107,32 +1138,16 @@
                 const pdfKey = 'pdf_ins_blob_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
                 await savePdfBytesToDB(pdfKey, arrayBuffer);
 
-                const pdfDoc = await loadPdfJsDocument(arrayBuffer);
-                const newPages = [];
-                for (let i = 1; i <= pdfDoc.numPages; i++) {
-                    const page = await pdfDoc.getPage(i);
-                    const vp = page.getViewport({ scale: 1 });
-                    newPages.push({
-                        id: 'pdf_ins_' + Date.now() + '_' + i,
-                        template: 'blank',
-                        width: Math.round(vp.width) || 595,
-                        height: Math.round(vp.height) || 842,
-                        pdfPageNum: i,
-                        pdfStorageKey: pdfKey,
-                        strokes: [],
-                        items: []
-                    });
-                }
-
+                const newPages = await buildPagesFromPdfBuffer(arrayBuffer, pdfKey, file.name);
                 const insertAt = state.pageIndex + 1;
                 state.doc.pages.splice(insertAt, 0, ...newPages);
                 state.pageIndex = insertAt;
                 saveAllToStorage(false);
                 await renderPane(activePane);
-                showToast(`แทรกไฟล์ PDF เพิ่ม ${pdfDoc.numPages} หน้าเรียบร้อย! ✅`);
+                showToast(`แทรกไฟล์ PDF เพิ่ม ${newPages.length} หน้าเรียบร้อย! ✅`);
             } catch (err) {
                 console.error('PDF insert error:', err);
-                showToast('แทรกไฟล์ PDF ไม่สำเร็จ: ' + (err?.message || 'ไฟล์อาจติดรหัสผ่าน'));
+                showToast('แทรกไฟล์ PDF ไม่สำเร็จ: ' + (err?.message || 'ลองใหม่อีกครั้ง'));
             } finally {
                 input.value = '';
             }
