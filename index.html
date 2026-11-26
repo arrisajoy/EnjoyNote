@@ -267,6 +267,10 @@
                         เข้าใช้งานทันที
                     </button>
 
+                    <button type="button" onclick="openCloudConfigModal()" class="w-full py-2.5 rounded-2xl bg-purple-100 hover:bg-purple-200 text-[#4A2545] font-bold text-xs shadow-2xs transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-cloud"></i> ตั้งค่าคลาวด์ซิงค์ข้ามเครื่อง (ถ้าเปิดบน GitHub)
+                    </button>
+
                     <button type="button" id="btn-install-pwa-login" onclick="triggerInstallApp()" class="w-full py-3 rounded-2xl bg-amber-400 hover:bg-amber-300 text-[#361932] font-extrabold text-xs sm:text-sm shadow-sm transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-download"></i> ติดตั้งแอปลงเครื่อง (ใช้งานแบบไม่มีเน็ต)
                     </button>
@@ -368,8 +372,9 @@
                     <i class="fa-solid fa-wand-magic-sparkles"></i>
                     <span>AI ผู้ช่วยเรียน</span>
                 </button>
-                <button type="button" onclick="saveAllToStorage(true)" class="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-300 flex items-center justify-center" title="บันทึกข้อมูลเรียบร้อย">
+                <button type="button" id="btn-cloud-sync-now" onclick="syncCloudNow(true)" class="px-2.5 py-1.5 rounded-xl bg-emerald-500/25 hover:bg-emerald-500/40 text-emerald-200 font-bold text-xs flex items-center gap-1 transition" title="ซิงค์ข้อมูลกับคลาวด์ข้ามอุปกรณ์">
                     <i class="fa-solid fa-cloud-arrow-up text-xs"></i>
+                    <span id="cloud-sync-badge" class="hidden md:inline">ซิงค์</span>
                 </button>
             </div>
         </div>
@@ -610,6 +615,187 @@
     <div id="toast-box" class="fixed bottom-16 left-1/2 -translate-x-1/2 z-50 pointer-events-none opacity-0 transition-opacity duration-200">
         <div id="toast-msg" class="px-4 py-2 rounded-full bg-slate-900/90 text-white text-xs font-bold shadow-lg whitespace-nowrap"></div>
     </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        window.CloudSyncEngine = {
+            db: null,
+            auth: null,
+            user: null,
+            unsubscribe: null,
+            isSyncingFromRemote: false,
+            lastPushedHash: '',
+
+            getAccountKey(email) {
+                return (email || 'guest').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+            },
+
+            async init() {
+                try {
+                    const savedCustomCfg = localStorage.getItem('enjoy_note_custom_firebase_cfg');
+                    let cfg = null;
+                    if (typeof __firebase_config !== 'undefined' && __firebase_config) {
+                        cfg = JSON.parse(__firebase_config);
+                    } else if (savedCustomCfg) {
+                        cfg = JSON.parse(savedCustomCfg);
+                    }
+
+                    if (!cfg || !cfg.apiKey) {
+                        this.updateBadge('ออฟไลน์ในเครื่อง', false);
+                        return false;
+                    }
+
+                    const app = initializeApp(cfg);
+                    this.auth = getAuth(app);
+                    this.db = getFirestore(app);
+
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(this.auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(this.auth);
+                    }
+                    this.user = this.auth.currentUser;
+                    this.updateBadge('พร้อมซิงค์คลาวด์', true);
+                    return true;
+                } catch (e) {
+                    console.warn('Cloud init fallback to offline:', e);
+                    this.updateBadge('โหมดในเครื่อง', false);
+                    return false;
+                }
+            },
+
+            updateBadge(text, online) {
+                const badge = document.getElementById('cloud-sync-badge');
+                const pill = document.getElementById('network-status-pill');
+                if (badge) badge.textContent = text;
+                if (pill && online) {
+                    pill.className = 'mt-3 inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#DCFCE7] text-[#15803D] text-xs font-bold';
+                    pill.innerHTML = '<span class="w-2 h-2 rounded-full bg-[#16A34A]"></span> เชื่อมต่อคลาวด์แล้ว • ซิงค์ข้ามทุกเครื่องด้วย Gmail';
+                }
+            },
+
+            getDocRef(email) {
+                const appId = typeof __app_id !== 'undefined' ? __app_id : 'enjoy-note-global';
+                const accKey = this.getAccountKey(email);
+                return doc(this.db, 'artifacts', appId, 'public', 'data', 'enjoy_note_accounts', accKey);
+            },
+
+            async startAccountSync(email) {
+                if (!this.db || !this.user || !email || email === 'offline@enjoynote.app') return;
+                if (this.unsubscribe) {
+                    this.unsubscribe();
+                    this.unsubscribe = null;
+                }
+
+                const ref = this.getDocRef(email);
+                this.updateBadge('กำลังซิงค์...', true);
+
+                // 1. Pull existing cloud data first on login
+                try {
+                    const snap = await getDoc(ref);
+                    if (snap.exists()) {
+                        const remote = snap.data();
+                        if (remote && remote.docsJson) {
+                            const remoteDocs = JSON.parse(remote.docsJson);
+                            if (Array.isArray(remoteDocs) && remoteDocs.length > 0) {
+                                this.isSyncingFromRemote = true;
+                                appData.docs = remoteDocs;
+                                if (remote.customLogoUrl) appData.customLogoUrl = remote.customLogoUrl;
+                                if (Array.isArray(remote.folders)) appData.folders = remote.folders;
+                                saveAllToStorage(false, true);
+                                applyCustomAppLogo();
+                                renderLibrary();
+                                this.isSyncingFromRemote = false;
+                                showToast('ดึงสมุดโน๊ตจากคลาวด์ของคุณสำเร็จ! ☁️');
+                            }
+                        }
+                    } else {
+                        await this.pushToCloud(false);
+                    }
+                } catch (err) {
+                    console.warn('Initial cloud fetch error:', err);
+                }
+
+                // 2. Real-time listener across devices
+                this.unsubscribe = onSnapshot(ref, (snap) => {
+                    if (!snap.exists()) return;
+                    const remote = snap.data();
+                    if (!remote || !remote.docsJson) return;
+                    if (remote.docsJson === this.lastPushedHash) return;
+
+                    try {
+                        const remoteDocs = JSON.parse(remote.docsJson);
+                        if (Array.isArray(remoteDocs)) {
+                            this.isSyncingFromRemote = true;
+                            appData.docs = remoteDocs;
+                            if (remote.customLogoUrl) appData.customLogoUrl = remote.customLogoUrl;
+                            saveAllToStorage(false, true);
+                            applyCustomAppLogo();
+                            if (!document.getElementById('library-screen').classList.contains('hidden')) {
+                                renderLibrary();
+                            }
+                            if (!document.getElementById('workspace-screen').classList.contains('hidden') && paneState[1].doc) {
+                                const updatedDoc1 = appData.docs.find(d => d.id === paneState[1].doc.id);
+                                if (updatedDoc1) {
+                                    paneState[1].doc = updatedDoc1;
+                                    renderPane(1);
+                                }
+                            }
+                            this.isSyncingFromRemote = false;
+                            this.updateBadge('ซิงค์ล่าสุดแล้ว', true);
+                        }
+                    } catch (e) {
+                        this.isSyncingFromRemote = false;
+                    }
+                }, (error) => {
+                    console.warn('Snapshot listener error:', error);
+                    this.updateBadge('ซิงค์พักชั่วคราว', false);
+                });
+            },
+
+            async pushToCloud(showNotify = false) {
+                if (this.isSyncingFromRemote) return;
+                const email = appData.user?.email;
+                if (!this.db || !this.user || !email || email === 'offline@enjoynote.app') {
+                    if (showNotify) {
+                        showToast('บันทึกในเครื่องแล้ว (ตั้งค่าคลาวด์เพื่อซิงค์ข้ามเครื่องได้)');
+                    }
+                    return;
+                }
+
+                try {
+                    this.updateBadge('กำลังบันทึกคลาวด์...', true);
+                    const docsJson = JSON.stringify(appData.docs);
+                    this.lastPushedHash = docsJson;
+                    const ref = this.getDocRef(email);
+                    await setDoc(ref, {
+                        email: email.toLowerCase().trim(),
+                        name: appData.user.name || '',
+                        customLogoUrl: appData.customLogoUrl || '',
+                        folders: appData.folders || [],
+                        docsJson: docsJson,
+                        updatedAt: Date.now()
+                    }, { merge: true });
+                    this.updateBadge('ซิงค์คลาวด์แล้ว', true);
+                    if (showNotify) showToast('ซิงค์ข้อมูลขึ้นคลาวด์สำเร็จ! เปิดอีกเครื่องได้เลย ☁️');
+                } catch (e) {
+                    console.warn('Push to cloud failed:', e);
+                    this.updateBadge('คลาวด์เต็ม/ออฟไลน์', false);
+                    if (showNotify) showToast('บันทึกในเครื่องแล้ว (ขนาดไฟล์ใหญ่เกินโควต้าคลาวด์)');
+                }
+            }
+        };
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            await window.CloudSyncEngine.init();
+            if (appData.user && appData.user.email && appData.user.email !== 'offline@enjoynote.app') {
+                await window.CloudSyncEngine.startAccountSync(appData.user.email);
+            }
+        });
+    </script>
 
     <script>
         // ==================== INDEXEDDB FOR LARGE PDF & OFFLINE STORAGE ====================
@@ -2177,72 +2363,72 @@
                         <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อหัวข้อลิงก์</label>
                         <input type="text" id="link-title-input" placeholder="เช่น คลิปติวบทที่ 1, บทความสรุป..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
                     </div>
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">วางลิงก์ (URL)</label>
-                        <input type="url" id="link-url-input" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
-                    </div>
-                </div>
-                `,
-                [
-                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
-                    {
-                        text: 'วางลิงก์ลงหน้านี้',
-                        class: 'bg-blue-600 text-white',
-                        onClick: () => {
-                            let url = document.getElementById('link-url-input').value.trim();
-                            const title = document.getElementById('link-title-input').value.trim() || 'ลิงก์เนื้อหาอ้างอิง';
-                            if (!url) return showToast('กรุณาวางลิงก์ URL ก่อนครับ');
-                            if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
-                            addMediaItemToPage({ type: 'link', title, url, width: 260 });
-                            closeModal();
-                            showToast('วางลิงก์เรียบร้อย! แตะ "ดูในแอป" เพื่อเปิดอ่านได้ทันที');
-                        }
-                    }
-                ]
-            );
+        function saveAllToStorage(showNotify = false, skipCloud = false) {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(appData));
+                if (showNotify && (!window.CloudSyncEngine || !window.CloudSyncEngine.db)) {
+                    showToast('บันทึกสมุดโน๊ตเรียบร้อยแล้ว 💾');
+                }
+            } catch (e) {
+                if (showNotify) showToast('พื้นที่จัดเก็บใกล้เต็ม แนะนำให้ลบไฟล์ขนาดใหญ่บางส่วน');
+            }
+            if (!skipCloud && window.CloudSyncEngine) {
+                window.CloudSyncEngine.pushToCloud(showNotify);
+            }
         }
 
-        function openInsertVideoModal() {
+        function syncCloudNow(showNotify = true) {
+            if (!window.CloudSyncEngine || !window.CloudSyncEngine.db) {
+                openCloudConfigModal();
+                return;
+            }
+            window.CloudSyncEngine.pushToCloud(showNotify);
+        }
+
+        function openCloudConfigModal() {
+            const existing = localStorage.getItem('enjoy_note_custom_firebase_cfg') || '';
             showModal(
-                'แทรกวิดีโอลงหน้ากระดาษ 🎬',
+                'เชื่อมต่อคลาวด์ซิงค์ข้ามเครื่อง (Gmail Sync) ☁️',
                 `
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">ชื่อวิดีโอ</label>
-                        <input type="text" id="video-title-input" placeholder="เช่น คลิปสอนบทที่ 1..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                <div class="space-y-3 text-xs text-slate-700 leading-relaxed">
+                    <div class="p-3 rounded-2xl bg-purple-50 border border-purple-200 text-gnPurple">
+                        <b>ทำไมเปิดบน GitHub แล้วข้อมูลยังไม่ข้ามเครื่อง?</b><br>
+                        เพราะเว็บ GitHub Pages เป็นเว็บฟรีที่ไม่มีฐานข้อมูลในตัวครับ หากต้องการให้ซิงค์ข้ามมือถือกับแท็บเล็ตเมื่อเข้า Gmail เดียวกัน ให้วางค่า <b>Firebase Config (JSON)</b> ฟรีของคุณด้านล่างนี้ครับ
                     </div>
                     <div>
-                        <label class="block text-xs font-bold text-slate-600 mb-1">วางลิงก์วิดีโอ (YouTube, Google Drive, MP4 ฯลฯ)</label>
-                        <input type="url" id="video-url-input" placeholder="https://..." class="w-full px-3 py-2 rounded-xl border border-slate-200 text-sm outline-none focus:border-gnPurple">
+                        <label class="block font-bold text-slate-600 mb-1">วางโค้ด Firebase Config (รูปแบบ JSON)</label>
+                        <textarea id="firebase-cfg-textarea" rows="5" class="w-full p-2.5 rounded-xl border border-slate-200 font-mono text-[11px] outline-none focus:border-gnPurple" placeholder='{"apiKey":"...","authDomain":"...","projectId":"..."}'>${existing}</textarea>
                     </div>
-                    <div class="text-center text-xs text-slate-400 font-bold">— หรือเลือกไฟล์วิดีโอจากในเครื่อง (เล่นในหน้าทันที) —</div>
-                    <input type="file" id="video-file-input" accept="video/*" class="w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-rose-50 file:text-rose-700 file:font-bold">
+                    <p class="text-[11px] text-slate-500">* หากคุณเปิดใช้งานในหน้าต่างตัวอย่างนี้ ระบบคลาวด์จะเชื่อมต่อให้อัตโนมัติอยู่แล้วครับ</p>
                 </div>
                 `,
                 [
-                    { text: 'ยกเลิก', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
+                    { text: 'ปิด', class: 'bg-slate-100 text-slate-700', onClick: () => closeModal() },
                     {
-                        text: 'วางวิดีโอลงหน้านี้',
-                        class: 'bg-rose-600 text-white',
-                        onClick: () => {
-                            const title = document.getElementById('video-title-input').value.trim() || 'วิดีโอประกอบการเรียน';
-                            const urlInput = document.getElementById('video-url-input').value.trim();
-                            const fileInput = document.getElementById('video-file-input');
-                            if (fileInput.files && fileInput.files[0]) {
-                                const reader = new FileReader();
-                                reader.onload = (e) => {
-                                    addMediaItemToPage({ type: 'video', title, url: e.target.result, width: 280 });
-                                    closeModal();
-                                    showToast('แทรกไฟล์วิดีโอลงหน้ากระดาษแล้ว!');
-                                };
-                                reader.readAsDataURL(fileInput.files[0]);
-                            } else if (urlInput) {
-                                const finalUrl = /^https?:\/\//i.test(urlInput) ? urlInput : 'https://' + urlInput;
-                                addMediaItemToPage({ type: 'video', title, url: finalUrl, width: 280 });
+                        text: 'บันทึกและเชื่อมต่อคลาวด์',
+                        class: 'bg-gnPurple text-white',
+                        onClick: async () => {
+                            const raw = document.getElementById('firebase-cfg-textarea').value.trim();
+                            if (!raw) {
+                                localStorage.removeItem('enjoy_note_custom_firebase_cfg');
                                 closeModal();
-                                showToast('แทรกการ์ดวิดีโอลงหน้ากระดาษแล้ว! กดเล่นได้ทันที');
-                            } else {
-                                showToast('กรุณาวางลิงก์วิดีโอหรือเลือกไฟล์วิดีโอครับ');
+                                showToast('ล้างการตั้งค่าคลาวด์แล้ว');
+                                return;
+                            }
+                            try {
+                                const parsed = JSON.parse(raw);
+                                if (!parsed.apiKey || !parsed.projectId) throw new Error('Invalid');
+                                localStorage.setItem('enjoy_note_custom_firebase_cfg', JSON.stringify(parsed));
+                                closeModal();
+                                showToast('กำลังเชื่อมต่อคลาวด์... ⏳');
+                                if (window.CloudSyncEngine) {
+                                    const ok = await window.CloudSyncEngine.init();
+                                    if (ok && appData.user?.email) {
+                                        await window.CloudSyncEngine.startAccountSync(appData.user.email);
+                                    }
+                                }
+                            } catch (e) {
+                                showToast('รูปแบบ JSON ไม่ถูกต้อง กรุณาตรวจสอบเครื่องหมายปีกกาและเครื่องหมายคำพูดครับ');
                             }
                         }
                     }
@@ -2319,21 +2505,21 @@
                         const prevAudio = document.getElementById('rec-preview-audio');
                         const prevWrap = document.getElementById('rec-preview-wrap');
                         if (prevAudio && prevWrap) {
-                            prevAudio.src = lastRecordedAudioDataUrl;
-                            prevWrap.classList.remove('hidden');
-                        }
-                    };
-                    reader.readAsDataURL(blob);
-                    stream.getTracks().forEach(t => t.stop());
-                };
-                activeMediaRecorder.start();
-                document.getElementById('rec-status-box').textContent = '🔴 กำลังอัดเสียง... พูดได้เลยครับ';
-                document.getElementById('btn-start-rec').disabled = true;
-                document.getElementById('btn-stop-rec').disabled = false;
-                document.getElementById('btn-stop-rec').classList.replace('bg-slate-300', 'bg-slate-800');
-                document.getElementById('btn-stop-rec').classList.replace('text-slate-600', 'text-white');
-            } catch (err) {
-                showToast('กรุณาอนุญาตการใช้ไมโครโฟนก่อนอัดเสียงครับ');
+        function handleLogin(isGuest) {
+            const emailInput = document.getElementById('login-email').value.trim();
+            const nameInput = document.getElementById('login-name').value.trim();
+            if (!isGuest && !emailInput) {
+                showToast('กรุณากรอกอีเมล Gmail หรือกด "เข้าใช้งานทันที" ครับ');
+                return;
+            }
+            appData.user = {
+                email: isGuest ? 'offline@enjoynote.app' : emailInput,
+                name: nameInput || (emailInput ? emailInput.split('@')[0] : 'นักเรียนคนเก่ง')
+            };
+            saveAllToStorage(false, true);
+            enterLibraryScreen();
+            if (!isGuest && window.CloudSyncEngine) {
+                window.CloudSyncEngine.startAccountSync(appData.user.email);
             }
         }
 
